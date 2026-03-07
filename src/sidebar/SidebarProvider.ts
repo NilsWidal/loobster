@@ -210,6 +210,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
               </div>\`;
             }
 
+            // Linear status
+            const linearBadge = currentState.linearAvailable
+              ? '<span class="compliance-badge badge-pass">Linear connected</span>'
+              : '<span class="compliance-badge" style="background:var(--vscode-descriptionForeground);color:#fff;">Local files</span>';
+            html += \`<div style="margin:8px 0;">\${linearBadge}</div>\`;
+
             // Compliance badges
             const comp = currentState.security || {};
             Object.keys(comp).forEach(fw => {

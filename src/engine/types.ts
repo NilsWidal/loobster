@@ -26,6 +26,7 @@ export interface WorkflowState {
     total: number;
     current: number;
   };
+  linearAvailable: boolean;
 }
 
 export const INITIAL_STATE: WorkflowState = {
@@ -37,4 +38,5 @@ export const INITIAL_STATE: WorkflowState = {
   log: [],
   security: {},
   subIssues: { total: 0, current: 0 },
+  linearAvailable: false,
 };

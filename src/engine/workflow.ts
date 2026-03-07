@@ -3,6 +3,7 @@ import { ClaudeCli } from '../claude/cli';
 import { ClaudeEvent, Phase } from '../claude/types';
 import { WorkflowState, GateResponse, INITIAL_STATE } from './types';
 import { playGateSound, playCompletionSound } from '../notifications/sound';
+import { detectLinearMcp } from '../linear/detector';
 import type { SidebarProvider } from '../sidebar/SidebarProvider';
 
 const PHASE_ORDER: Phase[] = [
@@ -28,11 +29,18 @@ export class WorkflowEngine {
   }
 
   async start(input: string): Promise<void> {
-    this.state = { ...INITIAL_STATE, isRunning: true };
+    const claudePath = this.config.get<string>('claudePath', 'claude');
+    const linearAvailable = await detectLinearMcp(claudePath);
+
+    this.state = { ...INITIAL_STATE, isRunning: true, linearAvailable };
     this.updateSidebar();
 
+    const linearContext = linearAvailable
+      ? 'Linear MCP tools are available. Use them for documents, issues, and comments.'
+      : 'Linear is NOT available. Save all outputs as local .md files in research/ and plans/ directories.';
+
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    this.cli.start(`/reppit ${input}`, workspaceFolder);
+    this.cli.start(`${linearContext}\n\n/reppit ${input}`, workspaceFolder);
   }
 
   stop(): void {
