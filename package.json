@@ -1,0 +1,128 @@
+{
+  "name": "reppit-health",
+  "displayName": "RePPITHealth",
+  "description": "AI-powered development workflow for healthcare software — Research, Propose, Plan, Implement, Test with HIPAA/SOC2/HITRUST compliance gates",
+  "version": "0.1.0",
+  "publisher": "caramedical",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/carainc/reppit-health"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Testing"
+  ],
+  "keywords": [
+    "reppit",
+    "hipaa",
+    "compliance",
+    "healthcare",
+    "claude",
+    "ai",
+    "soc2",
+    "hitrust"
+  ],
+  "activationEvents": [
+    "onView:reppithealth-sidebar"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "reppithealth",
+          "title": "RePPITHealth",
+          "icon": "assets/icon-sidebar.svg"
+        }
+      ]
+    },
+    "views": {
+      "reppithealth": [
+        {
+          "type": "webview",
+          "id": "reppithealth-sidebar",
+          "name": "Workflow"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "reppithealth.start",
+        "title": "RePPIT: Start Workflow"
+      },
+      {
+        "command": "reppithealth.stop",
+        "title": "RePPIT: Stop Workflow"
+      },
+      {
+        "command": "reppithealth.initTemplates",
+        "title": "RePPIT: Initialize Project Templates"
+      }
+    ],
+    "configuration": {
+      "title": "RePPITHealth",
+      "properties": {
+        "reppithealth.notifications.sound": {
+          "type": "boolean",
+          "default": true,
+          "description": "Play sound when user input is needed at a gate"
+        },
+        "reppithealth.notifications.system": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show system notification when user input is needed"
+        },
+        "reppithealth.compliance.hipaa": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable HIPAA compliance checks"
+        },
+        "reppithealth.compliance.soc2": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable SOC2 compliance checks"
+        },
+        "reppithealth.compliance.hitrust": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable HITRUST compliance checks"
+        },
+        "reppithealth.claudePath": {
+          "type": "string",
+          "default": "claude",
+          "description": "Path to Claude CLI binary"
+        },
+        "reppithealth.autoApprove": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run Claude CLI with --dangerously-skip-permissions (no tool approval prompts)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "npm run build:ext && npm run build:webview",
+    "build:ext": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+    "build:webview": "cd webview && npm run build",
+    "watch": "npm run build:ext -- --watch",
+    "lint": "eslint src/ --ext .ts,.tsx",
+    "test": "vitest run",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "esbuild": "^0.20.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.2.0",
+    "@vscode/vsce": "^2.22.0"
+  }
+}
