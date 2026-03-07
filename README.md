@@ -82,7 +82,7 @@ You can also run the Secure phase independently via the `/secure` Claude Code co
 ## Credits
 
 - **RePPIT methodology** — [Mihail Eric](https://github.com/mihail911), Head of AI, creator of [Stanford's first AI software engineering course](https://themodernsoftware.dev)
-- **RePPIT Health extension** — [Cara Medical](https://caramedical.com)
+- **RePPIT Health extension** — [Cara](https://caramedical.com)
 
 ## License
 
