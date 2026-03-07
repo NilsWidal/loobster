@@ -49,7 +49,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>RePPITHealth</title>
+        <title>RePPIT Health</title>
         <style>
           body {
             font-family: var(--vscode-font-family);
@@ -143,7 +143,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         </style>
       </head>
       <body>
-        <h2>RePPITHealth</h2>
+        <h2>RePPIT Health</h2>
         <div id="app">
           <div class="start-section">
             <p style="font-size: 12px; opacity: 0.7;">No workflow running</p>
@@ -153,14 +153,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         <script>
           const vscode = acquireVsCodeApi();
-          const phases = ['research', 'propose', 'plan', 'implement', 'review', 'compliance', 'done'];
+          const phases = ['research', 'propose', 'plan', 'implement', 'test', 'secure', 'done'];
           const phaseLabels = {
             research: 'Research',
             propose: 'Propose',
             plan: 'Plan',
             implement: 'Implement',
-            review: 'Review',
-            compliance: 'Compliance',
+            test: 'Test',
+            secure: 'Secure',
             done: 'Done'
           };
 
@@ -211,7 +211,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             }
 
             // Compliance badges
-            const comp = currentState.compliance || {};
+            const comp = currentState.security || {};
             Object.keys(comp).forEach(fw => {
               const items = comp[fw]?.items || [];
               const fails = items.filter(i => i.status === 'fail').length;

@@ -1,7 +1,7 @@
 {
   "name": "reppit-health",
-  "displayName": "RePPITHealth",
-  "description": "AI-powered development workflow for healthcare software — Research, Propose, Plan, Implement, Test with HIPAA/SOC2/HITRUST compliance gates",
+  "displayName": "RePPIT Health",
+  "description": "AI-powered secure development workflow for healthcare software — RePPITS (Research, Propose, Plan, Implement, Test, Secure) with HIPAA/SOC2/HITRUST security gates",
   "version": "0.1.0",
   "publisher": "caramedical",
   "license": "Apache-2.0",
@@ -35,7 +35,7 @@
       "activitybar": [
         {
           "id": "reppithealth",
-          "title": "RePPITHealth",
+          "title": "RePPIT Health",
           "icon": "assets/icon-sidebar.svg"
         }
       ]
@@ -64,7 +64,7 @@
       }
     ],
     "configuration": {
-      "title": "RePPITHealth",
+      "title": "RePPIT Health",
       "properties": {
         "reppithealth.notifications.sound": {
           "type": "boolean",

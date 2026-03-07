@@ -3,9 +3,9 @@ import { ClaudeEvent, Phase, ComplianceItem } from './types';
 const PHASE_RE = /<!--\s*PHASE:(\w+)\s*-->/;
 const GATE_RE = /<!--\s*GATE:(\w+):prompt:(.*?)\s*-->/;
 const GATE_OPTIONS_RE = /<!--\s*GATE:(\w+):options:(.*?):prompt:(.*?)\s*-->/;
-const COMPLIANCE_START_RE = /<!--\s*COMPLIANCE:(\w+):START\s*-->/;
-const COMPLIANCE_ITEM_RE = /<!--\s*COMPLIANCE_ITEM:(pass|warn|fail):(.*?):(.*?)\s*-->/;
-const COMPLIANCE_END_RE = /<!--\s*COMPLIANCE:(\w+):END\s*-->/;
+const SECURE_START_RE = /<!--\s*SECURE:(\w+):START\s*-->/;
+const SECURE_ITEM_RE = /<!--\s*SECURE_ITEM:(pass|warn|fail):(.*?):(.*?)\s*-->/;
+const SECURE_END_RE = /<!--\s*SECURE:(\w+):END\s*-->/;
 const DONE_RE = /<!--\s*DONE\s*-->/;
 
 export class OutputParser {
@@ -48,7 +48,7 @@ export class OutputParser {
     }
 
     // Compliance tracking
-    const compStartMatch = line.match(COMPLIANCE_START_RE);
+    const compStartMatch = line.match(SECURE_START_RE);
     if (compStartMatch) {
       this.complianceBuffer = {
         framework: compStartMatch[1],
@@ -58,7 +58,7 @@ export class OutputParser {
     }
 
     if (this.complianceBuffer) {
-      const itemMatch = line.match(COMPLIANCE_ITEM_RE);
+      const itemMatch = line.match(SECURE_ITEM_RE);
       if (itemMatch) {
         this.complianceBuffer.items.push({
           status: itemMatch[1] as 'pass' | 'warn' | 'fail',
@@ -68,10 +68,10 @@ export class OutputParser {
         return null;
       }
 
-      const compEndMatch = line.match(COMPLIANCE_END_RE);
+      const compEndMatch = line.match(SECURE_END_RE);
       if (compEndMatch) {
         const result: ClaudeEvent = {
-          type: 'compliance',
+          type: 'secure',
           framework: this.complianceBuffer.framework as 'hipaa' | 'soc2' | 'hitrust',
           items: this.complianceBuffer.items,
         };

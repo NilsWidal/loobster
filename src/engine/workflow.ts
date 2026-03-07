@@ -10,8 +10,8 @@ const PHASE_ORDER: Phase[] = [
   'propose',
   'plan',
   'implement',
-  'review',
-  'compliance',
+  'test',
+  'secure',
   'done',
 ];
 
@@ -85,14 +85,14 @@ export class WorkflowEngine {
         }
         if (this.config.get<boolean>('notifications.system', true)) {
           vscode.window.showInformationMessage(
-            `RePPITHealth: ${event.prompt}`,
+            `RePPIT Health: ${event.prompt}`,
             'Open Sidebar'
           );
         }
         break;
 
-      case 'compliance':
-        this.state.compliance[event.framework] = { items: event.items };
+      case 'secure':
+        this.state.security[event.framework] = { items: event.items };
         break;
 
       case 'log':
@@ -110,7 +110,7 @@ export class WorkflowEngine {
           playCompletionSound();
         }
         vscode.window.showInformationMessage(
-          'RePPITHealth: Workflow complete!'
+          'RePPIT Health: Workflow complete!'
         );
         break;
     }

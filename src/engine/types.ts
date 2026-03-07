@@ -17,7 +17,7 @@ export interface WorkflowState {
   gateOptions?: string[];
   refinementCount: number;
   log: string[];
-  compliance: {
+  security: {
     hipaa?: { items: ComplianceItem[] };
     soc2?: { items: ComplianceItem[] };
     hitrust?: { items: ComplianceItem[] };
@@ -35,6 +35,6 @@ export const INITIAL_STATE: WorkflowState = {
   gateActive: false,
   refinementCount: 0,
   log: [],
-  compliance: {},
+  security: {},
   subIssues: { total: 0, current: 0 },
 };

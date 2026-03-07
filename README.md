@@ -1,18 +1,18 @@
-# RePPITHealth
+# RePPIT Health
 
-AI-powered development workflow for healthcare software with built-in compliance gates.
+AI-powered secure development workflow for healthcare software.
 
-**RePPIT** (Research, Propose, Plan, Implement, Test) is a structured development methodology created by [Mihail Eric](https://github.com/mihail911) (Stanford lecturer and researcher). **RePPITHealth** extends it with HIPAA, SOC2, and HITRUST compliance checks for healthcare and healthtech teams.
+**RePPIT Health** implements the **RePPITS** methodology — **R**esearch, **P**ropose, **P**lan, **I**mplement, **T**est, **S**ecure — extending the [RePPIT framework](https://github.com/mihail911) by [Mihail Eric](https://github.com/mihail911) (Stanford lecturer and researcher) with HIPAA, SOC2, and HITRUST security gates for healthcare and healthtech teams.
 
 ## What it does
 
 A VS Code / Cursor sidebar extension that guides you through a complete development workflow powered by Claude Code:
 
 ```
-Research  -->  Propose  -->  Plan  -->  Implement  -->  Review  -->  Compliance  -->  Done
-    ^              ^            ^           ^              ^             ^
-    |  refine      |  refine    |  refine   |   fix loop   |   fix loop  |  fix loop
-    └──────┘       └──────┘     └──────┘    └─────────┘    └─────────┘   └─────────┘
+Research  -->  Propose  -->  Plan  -->  Implement  -->  Test  -->  Secure  -->  Done
+    ^              ^            ^           ^             ^           ^
+    |  refine      |  refine    |  refine   |  fix loop   |  fix loop |  fix loop
+    └──────┘       └──────┘     └──────┘    └─────────┘   └──────┘    └──────┘
 ```
 
 Each phase has a **gate** — the workflow pauses, plays a sound, and waits for your approval before advancing. You can refine any phase as many times as needed.
@@ -20,7 +20,8 @@ Each phase has a **gate** — the workflow pauses, plays a sound, and waits for 
 ## Features
 
 - **Visual sidebar** — phase stepper, gate buttons, real-time Claude output log
-- **Compliance gates** — HIPAA, SOC2, HITRUST checklists run against your diff before commit
+- **Security gates** — HIPAA, SOC2, HITRUST checklists run against your diff before commit
+- **`/secure` command** — run security checks standalone, anytime
 - **Linear integration** (optional) — creates issues, documents, and comments in Linear. Falls back to local `.md` files if Linear is not configured
 - **Sound notifications** — plays a sound when your input is needed
 - **Works in VS Code and Cursor**
@@ -28,9 +29,9 @@ Each phase has a **gate** — the workflow pauses, plays a sound, and waits for 
 ## Quick start
 
 1. Install the extension
-2. Open command palette: `RePPIT: Initialize Project Templates`
-3. Open the RePPITHealth sidebar
-4. Click **Start Workflow** or run `RePPIT: Start Workflow` from the command palette
+2. Open command palette: `RePPIT Health: Initialize Project Templates`
+3. Open the RePPIT Health sidebar
+4. Click **Start Workflow** or run `RePPIT Health: Start Workflow` from the command palette
 
 ### Prerequisites
 
@@ -41,13 +42,13 @@ Each phase has a **gate** — the workflow pauses, plays a sound, and waits for 
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `reppithealth.notifications.sound` | `true` | Play sound at gates |
-| `reppithealth.notifications.system` | `true` | Show system notifications |
-| `reppithealth.compliance.hipaa` | `true` | Enable HIPAA checks |
-| `reppithealth.compliance.soc2` | `false` | Enable SOC2 checks |
-| `reppithealth.compliance.hitrust` | `false` | Enable HITRUST checks |
-| `reppithealth.claudePath` | `claude` | Path to Claude CLI |
-| `reppithealth.autoApprove` | `false` | Skip Claude tool approval prompts |
+| `reppits.notifications.sound` | `true` | Play sound at gates |
+| `reppits.notifications.system` | `true` | Show system notifications |
+| `reppits.security.hipaa` | `true` | Enable HIPAA security checks |
+| `reppits.security.soc2` | `false` | Enable SOC2 security checks |
+| `reppits.security.hitrust` | `false` | Enable HITRUST security checks |
+| `reppits.claudePath` | `claude` | Path to Claude CLI |
+| `reppits.autoApprove` | `false` | Skip Claude tool approval prompts |
 
 ## How it works
 
@@ -59,12 +60,12 @@ The extension spawns the Claude CLI as a child process and communicates via stru
 2. **Propose** — generates 2 solution proposals with trade-offs
 3. **Plan** — breaks the chosen proposal into issues (Linear or local `.md`)
 4. **Implement** — works through each issue, writing code
-5. **Review** — reviews all changes for bugs, security, and style
-6. **Compliance** — runs healthcare compliance checklists against the diff
+5. **Test** — reviews and tests all changes for bugs, correctness, and style
+6. **Secure** — runs healthcare security checklists (HIPAA/SOC2/HITRUST) against the diff
 
-### Compliance checklists
+### Security checklists
 
-Checklists live in `templates/compliance/` and are fully customizable:
+Checklists live in `templates/security/` and are fully customizable:
 
 - **HIPAA** — PHI in logs, encryption, access control, audit trails, minimum necessary
 - **SOC2** — input validation, error handling, dependency auditing
@@ -72,10 +73,14 @@ Checklists live in `templates/compliance/` and are fully customizable:
 
 Each item gets a pass/warn/fail status. Failures block the commit gate (with override + justification).
 
+### Standalone `/secure` command
+
+You can also run the Secure phase independently via the `/secure` Claude Code command — useful for checking existing code without running the full workflow.
+
 ## Credits
 
 - **RePPIT methodology** — [Mihail Eric](https://github.com/mihail911), Stanford University
-- **RePPITHealth extension** — [Cara Medical](https://caramedical.com)
+- **RePPIT Health extension** — [Cara Medical](https://caramedical.com)
 
 ## License
 

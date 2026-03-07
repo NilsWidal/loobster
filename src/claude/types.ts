@@ -3,8 +3,8 @@ export type Phase =
   | 'propose'
   | 'plan'
   | 'implement'
-  | 'review'
-  | 'compliance'
+  | 'test'
+  | 'secure'
   | 'done';
 
 export interface PhaseChangeEvent {
@@ -20,7 +20,7 @@ export interface GateRequestEvent {
 }
 
 export interface ComplianceResultEvent {
-  type: 'compliance';
+  type: 'secure';
   framework: 'hipaa' | 'soc2' | 'hitrust';
   items: ComplianceItem[];
 }
@@ -52,3 +52,5 @@ export type ClaudeEvent =
   | LogLineEvent
   | ErrorEvent
   | DoneEvent;
+
+export type SecurityFramework = 'hipaa' | 'soc2' | 'hitrust';
