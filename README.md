@@ -2,7 +2,7 @@
 
 AI-powered secure development workflow for healthcare software.
 
-**RePPIT Health** implements the **RePPITS** methodology — **R**esearch, **P**ropose, **P**lan, **I**mplement, **T**est, **S**ecure — extending the [RePPIT framework](https://github.com/mihail911) by [Mihail Eric](https://github.com/mihail911) (Stanford lecturer and researcher) with HIPAA, SOC2, and HITRUST security gates for healthcare and healthtech teams.
+**RePPIT Health** implements the **RePPITS** methodology — **R**esearch, **P**ropose, **P**lan, **I**mplement, **T**est, **S**ecure — extending the [RePPIT framework](https://themodernsoftware.dev) by [Mihail Eric](https://github.com/mihail911) (Head of AI, creator of Stanford's first AI software engineering course) with HIPAA, SOC2, and HITRUST security gates for healthcare and healthtech teams.
 
 ## What it does
 
@@ -11,8 +11,10 @@ A VS Code / Cursor sidebar extension that guides you through a complete developm
 ```
 Research  -->  Propose  -->  Plan  -->  Implement  -->  Test  -->  Secure  -->  Done
     ^              ^            ^           ^             ^           ^
-    |  refine      |  refine    |  refine   |  fix loop   |  fix loop |  fix loop
-    └──────┘       └──────┘     └──────┘    └─────────┘   └──────┘    └──────┘
+    |  refine      |  refine    |  refine   |  fix loop   |  fix loop |  fix found?
+    └──────┘       └──────┘     └──────┘    └─────────┘   └──────┘    |
+                                                 ^                     |
+                                                 └─── Implement fix ──┘
 ```
 
 Each phase has a **gate** — the workflow pauses, plays a sound, and waits for your approval before advancing. You can refine any phase as many times as needed.
@@ -61,7 +63,7 @@ The extension spawns the Claude CLI as a child process and communicates via stru
 3. **Plan** — breaks the chosen proposal into issues (Linear or local `.md`)
 4. **Implement** — works through each issue, writing code
 5. **Test** — reviews and tests all changes for bugs, correctness, and style
-6. **Secure** — runs healthcare security checklists (HIPAA/SOC2/HITRUST) against the diff
+6. **Secure** — runs healthcare security checklists (HIPAA/SOC2/HITRUST) against the diff. If issues are found, loops back to Implement → Test → Secure until clean
 
 ### Security checklists
 
@@ -79,7 +81,7 @@ You can also run the Secure phase independently via the `/secure` Claude Code co
 
 ## Credits
 
-- **RePPIT methodology** — [Mihail Eric](https://github.com/mihail911), Stanford University
+- **RePPIT methodology** — [Mihail Eric](https://github.com/mihail911), Head of AI, creator of [Stanford's first AI software engineering course](https://themodernsoftware.dev)
 - **RePPIT Health extension** — [Cara Medical](https://caramedical.com)
 
 ## License
