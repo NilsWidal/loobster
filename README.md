@@ -9,12 +9,12 @@ AI-powered secure development workflow for healthcare software.
 A VS Code / Cursor sidebar extension that guides you through a complete development workflow powered by Claude Code:
 
 ```
-Research  -->  Propose  -->  Plan  -->  Implement  -->  Test  -->  Secure  -->  Done
-    ^              ^            ^           ^             ^           ^
-    |  refine      |  refine    |  refine   |  fix loop   |  fix loop |  fix found?
-    └──────┘       └──────┘     └──────┘    └─────────┘   └──────┘    |
-                                                 ^                     |
-                                                 └─── Implement fix ──┘
+Research --> Propose --> Plan --> Implement --> Test --> Secure --> Done
+   ^            ^          ^         ^           ^         |
+   | refine     | refine   | refine  | fix loop  | fix     |
+   └────┘       └────┘     └────┘    └────┘      └──┘      |
+                                          ^                 |
+                                          └── fix & test ───┘
 ```
 
 Each phase has a **gate** — the workflow pauses, plays a sound, and waits for your approval before advancing. You can refine any phase as many times as needed.
