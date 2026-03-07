@@ -12,7 +12,11 @@ const TEMPLATE_FILES = [
   'commands/make-plan.md',
   'commands/implement.md',
   'commands/review-code.md',
+  'commands/secure.md',
   'commands/reppit.md',
+  'compliance/hipaa-checklist.md',
+  'compliance/soc2-checklist.md',
+  'compliance/hitrust-checklist.md',
   'design_doc_template.md',
 ];
 

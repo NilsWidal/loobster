@@ -5,3 +5,4 @@ dist/
 webview/dist/
 .DS_Store
 *.log
+.claude/
