@@ -2,7 +2,7 @@
 
 AI-powered development workflow for healthcare software with built-in compliance gates.
 
-**RePPIT** (Research, Propose, Plan, Implement, Test) is a structured development methodology created by [Mikhail Eric](https://github.com/mikhailejohneric) (Stanford lecturer and researcher). **RePPITHealth** extends it with HIPAA, SOC2, and HITRUST compliance checks for healthcare and healthtech teams.
+**RePPIT** (Research, Propose, Plan, Implement, Test) is a structured development methodology created by [Mihail Eric](https://github.com/mihail911) (Stanford lecturer and researcher). **RePPITHealth** extends it with HIPAA, SOC2, and HITRUST compliance checks for healthcare and healthtech teams.
 
 ## What it does
 
@@ -74,7 +74,7 @@ Each item gets a pass/warn/fail status. Failures block the commit gate (with ove
 
 ## Credits
 
-- **RePPIT methodology** — [Mikhail Eric](https://github.com/mikhailejohneric), Stanford University
+- **RePPIT methodology** — [Mihail Eric](https://github.com/mihail911), Stanford University
 - **RePPITHealth extension** — [Cara Medical](https://caramedical.com)
 
 ## License
