@@ -43,6 +43,17 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'reppithealth.gateResponse',
+      (response: { action: string; feedback?: string; selection?: string }) => {
+        if (engine) {
+          engine.handleGateResponse(response as any);
+        }
+      }
+    )
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand('reppithealth.stop', () => {
       if (engine) {
         engine.stop();
