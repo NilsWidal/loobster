@@ -1,0 +1,12 @@
+.claude/
+.github/
+.git/
+.gitignore
+src/
+node_modules/
+*.ts
+!dist/**
+tsconfig.json
+CONTRIBUTING.md
+*.vsix
+.DS_Store
