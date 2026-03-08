@@ -20,7 +20,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage((message) => {
       switch (message.type) {
         case 'gate-response':
-          // Forwarded to WorkflowEngine via command
           vscode.commands.executeCommand(
             'reppithealth.gateResponse',
             message.payload
@@ -41,8 +40,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 
   private getHtml(webview: vscode.Webview): string {
-    // In production, this loads the built React app from webview/dist
-    // For now, inline a minimal UI
     return /* html */ `
       <!DOCTYPE html>
       <html lang="en">
@@ -51,212 +48,389 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>RePPIT Health</title>
         <style>
+          * { box-sizing: border-box; }
           body {
             font-family: var(--vscode-font-family);
             color: var(--vscode-foreground);
             background: var(--vscode-sideBar-background);
-            padding: 12px;
+            padding: 0;
             margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
           }
-          h2 { font-size: 14px; margin: 0 0 12px; }
-          .phase {
+
+          /* --- Phase stepper (compact horizontal) --- */
+          .stepper {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 6px 0;
-            font-size: 12px;
-            opacity: 0.5;
-          }
-          .phase.active { opacity: 1; font-weight: bold; }
-          .phase.completed { opacity: 0.8; }
-          .dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            border: 1px solid var(--vscode-foreground);
+            padding: 10px 12px;
+            gap: 2px;
+            border-bottom: 1px solid var(--vscode-panel-border);
             flex-shrink: 0;
           }
-          .phase.active .dot {
+          .step {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            opacity: 0.4;
+            white-space: nowrap;
+          }
+          .step.active { opacity: 1; font-weight: bold; }
+          .step.completed { opacity: 0.7; }
+          .step-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            border: 1.5px solid var(--vscode-foreground);
+            flex-shrink: 0;
+          }
+          .step.active .step-dot {
             background: var(--vscode-charts-blue);
             border-color: var(--vscode-charts-blue);
+            box-shadow: 0 0 6px var(--vscode-charts-blue);
           }
-          .phase.completed .dot {
+          .step.completed .step-dot {
             background: var(--vscode-charts-green);
             border-color: var(--vscode-charts-green);
           }
-          .gate-prompt {
-            margin: 16px 0;
-            padding: 12px;
-            background: var(--vscode-inputValidation-infoBackground);
-            border: 1px solid var(--vscode-inputValidation-infoBorder);
-            border-radius: 4px;
-            font-size: 12px;
+          .step-arrow {
+            color: var(--vscode-descriptionForeground);
+            font-size: 9px;
+            margin: 0 1px;
+            opacity: 0.4;
           }
+          @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+          }
+          .step.active .step-dot { animation: pulse 1.5s ease-in-out infinite; }
+
+          /* --- Status bar --- */
+          .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 12px;
+            border-bottom: 1px solid var(--vscode-panel-border);
+            font-size: 10px;
+            flex-shrink: 0;
+          }
+          .badges { display: flex; gap: 4px; flex-wrap: wrap; }
+          .badge {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+          }
+          .badge-pass { background: var(--vscode-charts-green); color: #fff; }
+          .badge-warn { background: var(--vscode-charts-yellow); color: #000; }
+          .badge-fail { background: var(--vscode-charts-red); color: #fff; }
+          .badge-info { background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); }
+          .badge-muted { background: var(--vscode-descriptionForeground); color: #fff; opacity: 0.6; }
+
+          /* --- Output log --- */
+          .output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 12px;
+            font-family: var(--vscode-editor-font-family, monospace);
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+          }
+          .output .line { padding: 1px 0; }
+          .output .line-error { color: var(--vscode-errorForeground); }
+          .output .line-phase {
+            color: var(--vscode-charts-blue);
+            font-weight: bold;
+            padding: 6px 0 2px;
+          }
+          .output .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            opacity: 0.5;
+            text-align: center;
+            font-family: var(--vscode-font-family);
+          }
+          .output .empty-state p { margin: 4px 0; font-size: 12px; }
+
+          /* --- Gate prompt --- */
+          .gate {
+            padding: 10px 12px;
+            border-top: 1px solid var(--vscode-charts-blue);
+            background: var(--vscode-inputValidation-infoBackground);
+            flex-shrink: 0;
+          }
+          .gate-text {
+            font-size: 12px;
+            margin: 0 0 8px;
+            line-height: 1.4;
+          }
+          .gate-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+
+          /* --- Input bar --- */
+          .input-bar {
+            display: flex;
+            gap: 4px;
+            padding: 8px 12px;
+            border-top: 1px solid var(--vscode-panel-border);
+            flex-shrink: 0;
+            background: var(--vscode-sideBar-background);
+          }
+          .input-bar input {
+            flex: 1;
+            background: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 3px;
+            padding: 6px 8px;
+            font-family: var(--vscode-font-family);
+            font-size: 12px;
+            outline: none;
+          }
+          .input-bar input:focus {
+            border-color: var(--vscode-focusBorder);
+          }
+          .input-bar input::placeholder {
+            color: var(--vscode-input-placeholderForeground);
+          }
+
+          /* --- Buttons --- */
           button {
             background: var(--vscode-button-background);
             color: var(--vscode-button-foreground);
             border: none;
-            padding: 6px 12px;
-            border-radius: 2px;
+            padding: 5px 10px;
+            border-radius: 3px;
             cursor: pointer;
-            font-size: 12px;
-            margin: 4px 4px 4px 0;
+            font-size: 11px;
+            font-family: var(--vscode-font-family);
+            white-space: nowrap;
           }
           button:hover { background: var(--vscode-button-hoverBackground); }
           button.secondary {
             background: var(--vscode-button-secondaryBackground);
             color: var(--vscode-button-secondaryForeground);
           }
-          textarea {
-            width: 100%;
-            background: var(--vscode-input-background);
-            color: var(--vscode-input-foreground);
-            border: 1px solid var(--vscode-input-border);
-            border-radius: 2px;
-            padding: 6px;
-            font-family: var(--vscode-font-family);
-            font-size: 12px;
-            resize: vertical;
-            margin: 8px 0;
-            box-sizing: border-box;
+          button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
+          button.stop {
+            background: var(--vscode-errorForeground);
+            color: #fff;
           }
-          .log {
-            margin-top: 16px;
-            font-size: 11px;
-            max-height: 300px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            opacity: 0.7;
-          }
-          .compliance-badge {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 2px;
-            font-size: 10px;
-            font-weight: bold;
-            margin: 2px;
-          }
-          .badge-pass { background: var(--vscode-charts-green); color: #fff; }
-          .badge-warn { background: var(--vscode-charts-yellow); color: #000; }
-          .badge-fail { background: var(--vscode-charts-red); color: #fff; }
-          .start-section { text-align: center; margin-top: 24px; }
         </style>
       </head>
       <body>
-        <h2>RePPIT Health</h2>
-        <div id="app">
-          <div class="start-section">
-            <p style="font-size: 12px; opacity: 0.7;">No workflow running</p>
-            <button onclick="startWorkflow()">Start Workflow</button>
+        <div id="stepper" class="stepper" style="display:none;"></div>
+        <div id="status-bar" class="status-bar" style="display:none;"></div>
+        <div id="output" class="output">
+          <div class="empty-state">
+            <p><strong>RePPIT Health</strong></p>
+            <p>Enter a task below to start the workflow</p>
           </div>
+        </div>
+        <div id="gate" class="gate" style="display:none;"></div>
+        <div id="input-bar" class="input-bar">
+          <input id="user-input" type="text" placeholder="Describe a feature or paste an issue ID..." />
+          <button id="send-btn" onclick="handleSend()">Start</button>
         </div>
 
         <script>
           const vscode = acquireVsCodeApi();
           const phases = ['research', 'propose', 'plan', 'implement', 'test', 'secure', 'done'];
           const phaseLabels = {
-            research: 'Research',
-            propose: 'Propose',
-            plan: 'Plan',
-            implement: 'Implement',
-            test: 'Test',
-            secure: 'Secure',
-            done: 'Done'
+            research: 'Research', propose: 'Propose', plan: 'Plan',
+            implement: 'Implement', test: 'Test', secure: 'Secure', done: 'Done'
           };
 
-          let currentState = null;
+          let state = null;
+          let prevLogLength = 0;
+
+          const inputEl = document.getElementById('user-input');
+          const sendBtn = document.getElementById('send-btn');
+          const outputEl = document.getElementById('output');
+          const stepperEl = document.getElementById('stepper');
+          const statusBarEl = document.getElementById('status-bar');
+          const gateEl = document.getElementById('gate');
+
+          // Enter to send
+          inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
+          });
 
           window.addEventListener('message', (event) => {
             const msg = event.data;
             if (msg.type === 'state-update') {
-              currentState = msg.state;
+              state = msg.state;
               render();
             }
           });
 
-          function render() {
-            if (!currentState || !currentState.isRunning) {
-              document.getElementById('app').innerHTML = \`
-                <div class="start-section">
-                  <p style="font-size: 12px; opacity: 0.7;">No workflow running</p>
-                  <button onclick="startWorkflow()">Start Workflow</button>
-                </div>
-              \`;
-              return;
+          function handleSend() {
+            const value = inputEl.value.trim();
+            if (!value) return;
+
+            if (!state || !state.isRunning) {
+              // Start workflow
+              vscode.postMessage({ type: 'start' });
+            } else if (state.gateActive) {
+              // Send as refine feedback
+              vscode.postMessage({
+                type: 'gate-response',
+                payload: { action: 'refine', feedback: value }
+              });
             }
-
-            const currentIdx = phases.indexOf(currentState.phase);
-
-            let html = phases.map((p, i) => {
-              const cls = i < currentIdx ? 'completed' : i === currentIdx ? 'active' : '';
-              return \`<div class="phase \${cls}"><div class="dot"></div>\${phaseLabels[p]}</div>\`;
-            }).join('');
-
-            if (currentState.gateActive && currentState.gatePrompt) {
-              html += \`<div class="gate-prompt">\${currentState.gatePrompt}</div>\`;
-
-              if (currentState.gateOptions && currentState.gateOptions.length > 0) {
-                currentState.gateOptions.forEach(opt => {
-                  html += \`<button onclick="sendGate('ok', null, '\${opt}')">Pick \${opt}</button>\`;
-                });
-              } else {
-                html += \`<button onclick="sendGate('ok')">OK, proceed</button>\`;
-              }
-              html += \`<button class="secondary" onclick="showRefine()">Refine</button>\`;
-              html += \`<button class="secondary" onclick="sendGate('skip')">Skip</button>\`;
-              html += \`<div id="refine-area" style="display:none;">
-                <textarea id="refine-input" rows="3" placeholder="Feedback..."></textarea>
-                <button onclick="sendRefine()">Send</button>
-              </div>\`;
-            }
-
-            // Linear status
-            const linearBadge = currentState.linearAvailable
-              ? '<span class="compliance-badge badge-pass">Linear connected</span>'
-              : '<span class="compliance-badge" style="background:var(--vscode-descriptionForeground);color:#fff;">Local files</span>';
-            html += \`<div style="margin:8px 0;">\${linearBadge}</div>\`;
-
-            // Compliance badges
-            const comp = currentState.security || {};
-            Object.keys(comp).forEach(fw => {
-              const items = comp[fw]?.items || [];
-              const fails = items.filter(i => i.status === 'fail').length;
-              const warns = items.filter(i => i.status === 'warn').length;
-              const cls = fails > 0 ? 'badge-fail' : warns > 0 ? 'badge-warn' : 'badge-pass';
-              const label = fails > 0 ? \`\${fails} fail\` : warns > 0 ? \`\${warns} warn\` : 'pass';
-              html += \`<span class="compliance-badge \${cls}">\${fw.toUpperCase()}: \${label}</span>\`;
-            });
-
-            // Log
-            if (currentState.log && currentState.log.length > 0) {
-              const recent = currentState.log.slice(-50).join('\\n');
-              html += \`<div class="log">\${escapeHtml(recent)}</div>\`;
-            }
-
-            html += \`<div style="margin-top:12px;"><button class="secondary" onclick="stopWorkflow()">Stop</button></div>\`;
-
-            document.getElementById('app').innerHTML = html;
+            inputEl.value = '';
           }
 
           function sendGate(action, feedback, selection) {
             vscode.postMessage({ type: 'gate-response', payload: { action, feedback, selection } });
           }
 
-          function showRefine() {
-            document.getElementById('refine-area').style.display = 'block';
-          }
+          function render() {
+            if (!state) return;
 
-          function sendRefine() {
-            const input = document.getElementById('refine-input').value;
-            sendGate('refine', input);
-          }
+            // --- Stepper ---
+            if (state.isRunning || state.phase === 'done') {
+              stepperEl.style.display = 'flex';
+              const currentIdx = phases.indexOf(state.phase);
+              stepperEl.innerHTML = phases.map((p, i) => {
+                const cls = i < currentIdx ? 'completed' : i === currentIdx ? 'active' : '';
+                const arrow = i < phases.length - 1 ? '<span class="step-arrow">&rsaquo;</span>' : '';
+                return '<span class="step ' + cls + '"><span class="step-dot"></span>' + phaseLabels[p] + '</span>' + arrow;
+              }).join('');
+            } else {
+              stepperEl.style.display = 'none';
+            }
 
-          function startWorkflow() {
-            vscode.postMessage({ type: 'start' });
-          }
+            // --- Status bar ---
+            if (state.isRunning) {
+              statusBarEl.style.display = 'flex';
+              let left = '';
+              let right = '';
 
-          function stopWorkflow() {
-            vscode.postMessage({ type: 'stop' });
+              // Linear badge
+              if (state.linearAvailable) {
+                left += '<span class="badge badge-pass">Linear</span>';
+              } else {
+                left += '<span class="badge badge-muted">Local</span>';
+              }
+
+              // Compliance badges
+              const comp = state.security || {};
+              Object.keys(comp).forEach(fw => {
+                const items = comp[fw]?.items || [];
+                const fails = items.filter(i => i.status === 'fail').length;
+                const warns = items.filter(i => i.status === 'warn').length;
+                const cls = fails > 0 ? 'badge-fail' : warns > 0 ? 'badge-warn' : 'badge-pass';
+                const label = fails > 0 ? fails + ' fail' : warns > 0 ? warns + ' warn' : 'pass';
+                left += '<span class="badge ' + cls + '">' + fw.toUpperCase() + ' ' + label + '</span>';
+              });
+
+              // Refinement count
+              if (state.refinementCount > 0) {
+                right += '<span class="badge badge-info">Refined ' + state.refinementCount + 'x</span>';
+              }
+
+              statusBarEl.innerHTML = '<div class="badges">' + left + '</div><div class="badges">' + right + '</div>';
+            } else {
+              statusBarEl.style.display = 'none';
+            }
+
+            // --- Output log ---
+            if (state.log && state.log.length > 0) {
+              // Append only new lines for performance
+              if (state.log.length > prevLogLength) {
+                // Clear empty state on first log
+                if (prevLogLength === 0) {
+                  outputEl.innerHTML = '';
+                }
+                const newLines = state.log.slice(prevLogLength);
+                newLines.forEach(line => {
+                  const div = document.createElement('div');
+                  div.className = 'line';
+                  if (line.startsWith('[ERROR]')) {
+                    div.className = 'line line-error';
+                  }
+                  div.textContent = line;
+                  outputEl.appendChild(div);
+                });
+                prevLogLength = state.log.length;
+                outputEl.scrollTop = outputEl.scrollHeight;
+              }
+            } else if (!state.isRunning && state.phase !== 'done') {
+              prevLogLength = 0;
+              outputEl.innerHTML = '<div class="empty-state"><p><strong>RePPIT Health</strong></p><p>Enter a task below to start the workflow</p></div>';
+            }
+
+            // Phase change markers in log
+            // (handled by engine emitting log lines)
+
+            // --- Gate ---
+            if (state.gateActive && state.gatePrompt) {
+              gateEl.style.display = 'block';
+              let gateHtml = '<div class="gate-text">' + escapeHtml(state.gatePrompt) + '</div>';
+              gateHtml += '<div class="gate-actions">';
+
+              if (state.gateOptions && state.gateOptions.length > 0) {
+                state.gateOptions.forEach(opt => {
+                  gateHtml += '<button onclick="sendGate(\'ok\', null, \'' + opt + '\')">Pick ' + escapeHtml(opt) + '</button>';
+                });
+              } else {
+                gateHtml += '<button onclick="sendGate(\'ok\')">OK, proceed</button>';
+              }
+              gateHtml += '<button class="secondary" onclick="sendGate(\'skip\')">Skip</button>';
+              gateHtml += '</div>';
+              gateEl.innerHTML = gateHtml;
+
+              // Update input placeholder for gate context
+              inputEl.placeholder = 'Type feedback to refine, or use buttons above...';
+            } else {
+              gateEl.style.display = 'none';
+              if (state.isRunning) {
+                inputEl.placeholder = 'Waiting for Claude...';
+              } else {
+                inputEl.placeholder = 'Describe a feature or paste an issue ID...';
+              }
+            }
+
+            // --- Send button ---
+            if (!state.isRunning) {
+              sendBtn.textContent = 'Start';
+              sendBtn.className = '';
+              sendBtn.onclick = function() { handleSend(); };
+            } else {
+              sendBtn.textContent = 'Stop';
+              sendBtn.className = 'stop';
+              sendBtn.onclick = function() {
+                vscode.postMessage({ type: 'stop' });
+              };
+            }
+
+            // --- Done state ---
+            if (state.phase === 'done' && !state.isRunning) {
+              const doneDiv = document.createElement('div');
+              doneDiv.className = 'line line-phase';
+              doneDiv.textContent = '--- Workflow complete ---';
+              outputEl.appendChild(doneDiv);
+              outputEl.scrollTop = outputEl.scrollHeight;
+              sendBtn.textContent = 'Start';
+              sendBtn.className = '';
+              sendBtn.onclick = function() { handleSend(); };
+              inputEl.placeholder = 'Start another workflow...';
+              prevLogLength = 0;
+            }
           }
 
           function escapeHtml(str) {
