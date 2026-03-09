@@ -27,16 +27,21 @@ export interface WorkflowState {
     current: number;
   };
   linearAvailable: boolean;
+  claudeTrace: boolean;
 }
 
-export const INITIAL_STATE: WorkflowState = {
-  phase: 'research',
-  isRunning: false,
-  isPaused: false,
-  gateActive: false,
-  refinementCount: 0,
-  log: [],
-  security: {},
-  subIssues: { total: 0, current: 0 },
-  linearAvailable: false,
-};
+/** Returns a fresh state object with no shared references. */
+export function createFreshState(): WorkflowState {
+  return {
+    phase: 'research',
+    isRunning: false,
+    isPaused: false,
+    gateActive: false,
+    refinementCount: 0,
+    log: [],
+    security: {},
+    subIssues: { total: 0, current: 0 },
+    linearAvailable: false,
+    claudeTrace: false,
+  };
+}

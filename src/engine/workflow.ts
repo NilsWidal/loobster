@@ -1,38 +1,41 @@
 import * as vscode from 'vscode';
 import { ClaudeCli } from '../claude/cli';
-import { ClaudeEvent, Phase } from '../claude/types';
-import { WorkflowState, GateResponse, INITIAL_STATE } from './types';
+import { ClaudeEvent } from '../claude/types';
+import { WorkflowState, GateResponse, createFreshState } from './types';
 import { playGateSound, playCompletionSound } from '../notifications/sound';
 import { detectLinearMcp } from '../linear/detector';
 import type { SidebarProvider } from '../sidebar/SidebarProvider';
 
-const PHASE_ORDER: Phase[] = [
-  'research',
-  'propose',
-  'plan',
-  'implement',
-  'test',
-  'secure',
-  'done',
-];
-
 export class WorkflowEngine {
-  private state: WorkflowState = { ...INITIAL_STATE };
+  private state: WorkflowState = createFreshState();
   private gateResolver: ((response: GateResponse) => void) | null = null;
 
   constructor(
     private cli: ClaudeCli,
     private sidebar: SidebarProvider,
-    private config: vscode.WorkspaceConfiguration
+    private config: vscode.WorkspaceConfiguration,
+    private log: vscode.LogOutputChannel
   ) {
     this.cli.on('event', (event: ClaudeEvent) => this.handleEvent(event));
+    this.log.info('WorkflowEngine created');
   }
 
   async start(input: string): Promise<void> {
-    const claudePath = this.config.get<string>('claudePath', 'claude');
-    const linearAvailable = await detectLinearMcp(claudePath);
+    // Immediately show "starting" state so the UI responds right away
+    this.state = createFreshState();
+    this.state.isRunning = true;
+    this.state.claudeTrace = this.config.get<boolean>('claudeTrace', false);
+    this.state.log.push('Starting workflow...');
+    this.updateSidebar();
 
-    this.state = { ...INITIAL_STATE, isRunning: true, linearAvailable };
+    const claudePath = this.config.get<string>('claudePath', 'claude');
+    this.log.info(`Detecting Linear MCP (claudePath="${claudePath}")...`);
+
+    const linearAvailable = await detectLinearMcp(claudePath);
+    this.log.info(`Linear MCP available: ${linearAvailable}`);
+
+    this.state.linearAvailable = linearAvailable;
+    this.state.log.push(linearAvailable ? 'Linear MCP detected' : 'Running in local mode (no Linear)');
     this.updateSidebar();
 
     const linearContext = linearAvailable
@@ -40,7 +43,12 @@ export class WorkflowEngine {
       : 'Linear is NOT available. Save all outputs as local .md files in research/ and plans/ directories.';
 
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    this.log.info(`Starting CLI in cwd="${workspaceFolder}"`);
+    this.state.log.push('Launching Claude CLI...');
+    this.updateSidebar();
+
     this.cli.start(`${linearContext}\n\n/reppit ${input}`, workspaceFolder);
+    this.log.info('CLI process spawned');
   }
 
   stop(): void {
@@ -77,10 +85,13 @@ export class WorkflowEngine {
   }
 
   private handleEvent(event: ClaudeEvent): void {
+    this.log.info(`CLI event: ${event.type}${'text' in event ? ` "${event.text.substring(0, 80)}"` : ''}`);
+
     switch (event.type) {
       case 'phase':
         this.state.phase = event.phase;
         this.state.refinementCount = 0;
+        this.state.log.push(`── Phase: ${event.phase} ──`);
         break;
 
       case 'gate':
@@ -108,10 +119,13 @@ export class WorkflowEngine {
         break;
 
       case 'error':
+        this.log.error(`CLI error: ${event.message}`);
         this.state.log.push(`[ERROR] ${event.message}`);
         break;
 
       case 'done':
+        if (!this.state.isRunning) break; // guard against duplicate done events
+        this.log.info('Workflow done');
         this.state.phase = 'done';
         this.state.isRunning = false;
         if (this.config.get<boolean>('notifications.sound', true)) {

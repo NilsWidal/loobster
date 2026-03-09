@@ -101,6 +101,11 @@
           "type": "boolean",
           "default": false,
           "description": "Run Claude CLI with --dangerously-skip-permissions (no tool approval prompts)"
+        },
+        "reppithealth.claudeTrace": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable verbose tracing of Claude CLI (adds --verbose --debug flags)"
         }
       }
     }

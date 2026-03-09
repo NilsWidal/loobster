@@ -4,9 +4,13 @@ import { WorkflowState } from '../engine/types';
 export class SidebarProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
 
-  constructor(private readonly extensionUri: vscode.Uri) {}
+  constructor(
+    private readonly extensionUri: vscode.Uri,
+    private readonly log: vscode.LogOutputChannel
+  ) {}
 
   resolveWebviewView(webviewView: vscode.WebviewView): void {
+    this.log.info('resolveWebviewView called');
     this.view = webviewView;
 
     webviewView.webview.options = {
@@ -17,35 +21,92 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     webviewView.webview.html = this.getHtml(webviewView.webview);
 
     // Handle messages from webview
-    webviewView.webview.onDidReceiveMessage((message) => {
-      switch (message.type) {
-        case 'gate-response':
-          vscode.commands.executeCommand(
-            'reppithealth.gateResponse',
-            message.payload
-          );
-          break;
-        case 'start':
-          vscode.commands.executeCommand('reppithealth.start');
-          break;
-        case 'stop':
-          vscode.commands.executeCommand('reppithealth.stop');
-          break;
+    webviewView.webview.onDidReceiveMessage(async (message) => {
+      this.log.info(`Webview message received: ${JSON.stringify(message)}`);
+      try {
+        switch (message.type) {
+          case 'gate-response':
+            await vscode.commands.executeCommand(
+              'reppithealth.gateResponse',
+              message.payload
+            );
+            break;
+          case 'start': {
+            const input = message.payload?.input;
+            this.log.info(`Start command: input="${input}"`);
+            if (!input) {
+              this.log.warn('Start command received with empty input, ignoring');
+              // Send a state reset so the button doesn't stay stuck
+              webviewView.webview.postMessage({
+                type: 'debug',
+                text: 'No input received by extension',
+              });
+              break;
+            }
+            await vscode.commands.executeCommand('reppithealth.start', input);
+            break;
+          }
+          case 'stop':
+            await vscode.commands.executeCommand('reppithealth.stop');
+            break;
+          case 'toggle-trace': {
+            const config = vscode.workspace.getConfiguration('reppithealth');
+            const current = config.get<boolean>('claudeTrace', false);
+            await config.update('claudeTrace', !current, vscode.ConfigurationTarget.Global);
+            this.log.info(`Claude trace toggled to ${!current}`);
+            // Send current value back to webview
+            webviewView.webview.postMessage({
+              type: 'trace-updated',
+              enabled: !current,
+            });
+            break;
+          }
+        }
+      } catch (err) {
+        this.log.error(`Error handling webview message: ${err}`);
+        // CRITICAL: Send error back to webview so button doesn't get stuck
+        webviewView.webview.postMessage({
+          type: 'debug',
+          text: `Extension error: ${err}`,
+        });
       }
     });
+
+    webviewView.onDidDispose(() => {
+      this.log.info('Webview view disposed — clearing view reference');
+      this.view = undefined;
+    });
+
+    this.log.info('resolveWebviewView complete');
   }
 
   updateState(state: WorkflowState): void {
-    this.view?.webview.postMessage({ type: 'state-update', state });
+    if (!this.view) {
+      this.log.warn('updateState called but view is undefined');
+      return;
+    }
+    this.view.webview.postMessage({ type: 'state-update', state });
+  }
+
+  private getNonce(): string {
+    let text = '';
+    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    for (let i = 0; i < 32; i++) {
+      text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+    return text;
   }
 
   private getHtml(webview: vscode.Webview): string {
+    const nonce = this.getNonce();
+
     return /* html */ `
       <!DOCTYPE html>
       <html lang="en">
       <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';" />
         <title>RePPIT Health</title>
         <style>
           * { box-sizing: border-box; }
@@ -226,10 +287,51 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             background: var(--vscode-errorForeground);
             color: #fff;
           }
+
+          /* --- Trace toggle --- */
+          .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 4px 12px;
+            border-bottom: 1px solid var(--vscode-panel-border);
+            flex-shrink: 0;
+          }
+          .trace-toggle {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            font-size: 10px;
+            opacity: 0.5;
+            user-select: none;
+          }
+          .trace-toggle:hover { opacity: 0.8; }
+          .trace-toggle.active { opacity: 1; color: var(--vscode-charts-yellow); }
+          .trace-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            border: 1px solid currentColor;
+          }
+          .trace-toggle.active .trace-dot {
+            background: var(--vscode-charts-yellow);
+            border-color: var(--vscode-charts-yellow);
+          }
+          .output .line-trace {
+            color: var(--vscode-descriptionForeground);
+            font-size: 11px;
+            opacity: 0.7;
+          }
         </style>
       </head>
       <body>
         <div id="stepper" class="stepper" style="display:none;"></div>
+        <div class="toolbar">
+          <label id="trace-toggle" class="trace-toggle" title="Enable Claude CLI verbose tracing">
+            <span class="trace-dot"></span>
+            <span>Trace</span>
+          </label>
+        </div>
         <div id="status-bar" class="status-bar" style="display:none;"></div>
         <div id="output" class="output">
           <div class="empty-state">
@@ -240,10 +342,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         <div id="gate" class="gate" style="display:none;"></div>
         <div id="input-bar" class="input-bar">
           <input id="user-input" type="text" placeholder="Describe a feature or paste an issue ID..." />
-          <button id="send-btn" onclick="handleSend()">Start</button>
+          <button id="send-btn">Start</button>
         </div>
 
-        <script>
+        <script nonce="${nonce}">
           const vscode = acquireVsCodeApi();
           const phases = ['research', 'propose', 'plan', 'implement', 'test', 'secure', 'done'];
           const phaseLabels = {
@@ -253,6 +355,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
           let state = null;
           let prevLogLength = 0;
+          let startTimeout = null;
 
           const inputEl = document.getElementById('user-input');
           const sendBtn = document.getElementById('send-btn');
@@ -260,38 +363,107 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           const stepperEl = document.getElementById('stepper');
           const statusBarEl = document.getElementById('status-bar');
           const gateEl = document.getElementById('gate');
+          const traceToggleEl = document.getElementById('trace-toggle');
+          let traceEnabled = false;
+
+          function debugLog(msg) {
+            console.log('[RePPIT Debug] ' + msg);
+            const div = document.createElement('div');
+            div.className = 'line';
+            div.style.color = 'var(--vscode-descriptionForeground)';
+            div.textContent = '[debug] ' + msg;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+          }
 
           // Enter to send
           inputEl.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
+              debugLog('Enter key pressed');
               handleSend();
+            }
+          });
+
+          // Trace toggle
+          traceToggleEl.addEventListener('click', () => {
+            vscode.postMessage({ type: 'toggle-trace' });
+          });
+
+          // Unified click handler — adapts to Start or Stop based on state
+          sendBtn.addEventListener('click', () => {
+            debugLog('Button clicked, state=' + JSON.stringify({isRunning: state?.isRunning, phase: state?.phase, disabled: sendBtn.disabled}));
+            if (!state || !state.isRunning) {
+              handleSend();
+            } else {
+              vscode.postMessage({ type: 'stop' });
             }
           });
 
           window.addEventListener('message', (event) => {
             const msg = event.data;
+            debugLog('Message from extension: type=' + msg.type);
             if (msg.type === 'state-update') {
               state = msg.state;
+              // Clear the safety timeout since we got a response
+              if (startTimeout) { clearTimeout(startTimeout); startTimeout = null; }
               render();
+            } else if (msg.type === 'trace-updated') {
+              traceEnabled = msg.enabled;
+              traceToggleEl.classList.toggle('active', traceEnabled);
+              debugLog('Trace ' + (traceEnabled ? 'enabled' : 'disabled'));
+            } else if (msg.type === 'debug') {
+              debugLog('Extension says: ' + msg.text);
+              // Re-enable button on error
+              sendBtn.disabled = false;
+              sendBtn.textContent = 'Start';
             }
           });
 
           function handleSend() {
             const value = inputEl.value.trim();
-            if (!value) return;
+            debugLog('handleSend called, value="' + value + '", state.isRunning=' + state?.isRunning);
+            if (!value) {
+              debugLog('Empty input, showing validation error');
+              inputEl.style.borderColor = 'var(--vscode-inputValidation-errorBorder, red)';
+              inputEl.placeholder = 'Please enter a description first...';
+              setTimeout(() => {
+                inputEl.style.borderColor = '';
+                inputEl.placeholder = 'Describe a feature or paste an issue ID...';
+              }, 2000);
+              return;
+            }
 
             if (!state || !state.isRunning) {
+              // Show immediate feedback before async command runs
+              outputEl.innerHTML = '';
+              prevLogLength = 0;
+              sendBtn.textContent = 'Starting...';
+              sendBtn.disabled = true;
+
+              debugLog('Posting start message with input: "' + value + '"');
+
               // Start workflow
-              vscode.postMessage({ type: 'start' });
+              vscode.postMessage({ type: 'start', payload: { input: value } });
+              inputEl.value = '';
+
+              // Safety timeout: if no state update arrives in 8s, re-enable the button
+              if (startTimeout) { clearTimeout(startTimeout); }
+              startTimeout = setTimeout(() => {
+                debugLog('TIMEOUT: No state update received after 8s — re-enabling button');
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Start';
+              }, 8000);
             } else if (state.gateActive) {
+              debugLog('Sending gate refine feedback');
               // Send as refine feedback
               vscode.postMessage({
                 type: 'gate-response',
                 payload: { action: 'refine', feedback: value }
               });
+              inputEl.value = '';
             }
-            inputEl.value = '';
+            // Don't clear input if running but not at a gate — user keeps their text
           }
 
           function sendGate(action, feedback, selection) {
@@ -300,6 +472,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
           function render() {
             if (!state) return;
+
+            // Sync trace toggle with state
+            if (state.claudeTrace !== undefined) {
+              traceEnabled = state.claudeTrace;
+              traceToggleEl.classList.toggle('active', traceEnabled);
+            }
 
             // --- Stepper ---
             if (state.isRunning || state.phase === 'done') {
@@ -362,6 +540,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                   div.className = 'line';
                   if (line.startsWith('[ERROR]')) {
                     div.className = 'line line-error';
+                  } else if (line.startsWith('[trace]')) {
+                    div.className = 'line line-trace';
                   }
                   div.textContent = line;
                   outputEl.appendChild(div);
@@ -380,19 +560,37 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             // --- Gate ---
             if (state.gateActive && state.gatePrompt) {
               gateEl.style.display = 'block';
-              let gateHtml = '<div class="gate-text">' + escapeHtml(state.gatePrompt) + '</div>';
-              gateHtml += '<div class="gate-actions">';
+              gateEl.innerHTML = '';
+
+              const gateText = document.createElement('div');
+              gateText.className = 'gate-text';
+              gateText.textContent = state.gatePrompt;
+              gateEl.appendChild(gateText);
+
+              const gateActions = document.createElement('div');
+              gateActions.className = 'gate-actions';
 
               if (state.gateOptions && state.gateOptions.length > 0) {
                 state.gateOptions.forEach(opt => {
-                  gateHtml += '<button onclick="sendGate(\'ok\', null, \'' + opt + '\')">Pick ' + escapeHtml(opt) + '</button>';
+                  const btn = document.createElement('button');
+                  btn.textContent = 'Pick ' + opt;
+                  btn.addEventListener('click', () => sendGate('ok', null, opt));
+                  gateActions.appendChild(btn);
                 });
               } else {
-                gateHtml += '<button onclick="sendGate(\'ok\')">OK, proceed</button>';
+                const okBtn = document.createElement('button');
+                okBtn.textContent = 'OK, proceed';
+                okBtn.addEventListener('click', () => sendGate('ok'));
+                gateActions.appendChild(okBtn);
               }
-              gateHtml += '<button class="secondary" onclick="sendGate(\'skip\')">Skip</button>';
-              gateHtml += '</div>';
-              gateEl.innerHTML = gateHtml;
+
+              const skipBtn = document.createElement('button');
+              skipBtn.className = 'secondary';
+              skipBtn.textContent = 'Skip';
+              skipBtn.addEventListener('click', () => sendGate('skip'));
+              gateActions.appendChild(skipBtn);
+
+              gateEl.appendChild(gateActions);
 
               // Update input placeholder for gate context
               inputEl.placeholder = 'Type feedback to refine, or use buttons above...';
@@ -405,17 +603,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
               }
             }
 
-            // --- Send button ---
+            // --- Send button (text/style only — click handler is a single addEventListener above) ---
+            sendBtn.disabled = false;
             if (!state.isRunning) {
               sendBtn.textContent = 'Start';
               sendBtn.className = '';
-              sendBtn.onclick = function() { handleSend(); };
             } else {
               sendBtn.textContent = 'Stop';
               sendBtn.className = 'stop';
-              sendBtn.onclick = function() {
-                vscode.postMessage({ type: 'stop' });
-              };
             }
 
             // --- Done state ---
@@ -427,7 +622,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
               outputEl.scrollTop = outputEl.scrollHeight;
               sendBtn.textContent = 'Start';
               sendBtn.className = '';
-              sendBtn.onclick = function() { handleSend(); };
               inputEl.placeholder = 'Start another workflow...';
               prevLogLength = 0;
             }

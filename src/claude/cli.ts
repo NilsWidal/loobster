@@ -1,5 +1,6 @@
 import { spawn, ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
+import * as vscode from 'vscode';
 import { OutputParser } from './parser';
 import { ClaudeEvent } from './types';
 
@@ -9,15 +10,23 @@ export class ClaudeCli extends EventEmitter {
 
   constructor(
     private claudePath: string,
-    private autoApprove: boolean
+    private autoApprove: boolean,
+    private trace: boolean,
+    private log: vscode.LogOutputChannel
   ) {
     super();
   }
 
   start(prompt: string, cwd?: string): void {
-    const args = this.autoApprove
-      ? ['--dangerously-skip-permissions', '-p', prompt]
-      : ['-p', prompt];
+    const args: string[] = [];
+    if (this.autoApprove) args.push('--dangerously-skip-permissions');
+    args.push('-p', prompt, '--output-format', 'stream-json');
+    if (this.trace) {
+      args.push('--verbose', '--debug');
+    }
+
+    this.log.info(`Spawning: ${this.claudePath} ${args.map(a => a.length > 60 ? a.substring(0, 60) + '...' : a).join(' ')}`);
+    this.log.info(`CWD: ${cwd ?? '(none)'}`);
 
     this.process = spawn(this.claudePath, args, {
       cwd,
@@ -25,10 +34,14 @@ export class ClaudeCli extends EventEmitter {
       env: { ...process.env },
     });
 
+    this.log.info(`Process spawned, pid=${this.process.pid}`);
+
     let buffer = '';
 
     this.process.stdout?.on('data', (chunk: Buffer) => {
-      buffer += chunk.toString();
+      const text = chunk.toString();
+      this.log.trace(`stdout chunk (${text.length} chars)`);
+      buffer += text;
       const lines = buffer.split('\n');
       buffer = lines.pop() ?? '';
 
@@ -41,14 +54,21 @@ export class ClaudeCli extends EventEmitter {
     });
 
     this.process.stderr?.on('data', (chunk: Buffer) => {
-      const event: ClaudeEvent = {
-        type: 'error',
-        message: chunk.toString(),
-      };
-      this.emit('event', event);
+      const text = chunk.toString().trim();
+      if (!text) return;
+      if (this.trace) {
+        // In trace mode, stderr is debug output, not errors
+        this.log.debug(`stderr: ${text.substring(0, 500)}`);
+        this.emit('event', { type: 'log', text: `[trace] ${text}` } as ClaudeEvent);
+      } else {
+        this.log.warn(`stderr: ${text.substring(0, 200)}`);
+        this.emit('event', { type: 'error', message: text } as ClaudeEvent);
+      }
     });
 
-    this.process.on('exit', (code) => {
+    this.process.on('exit', (code, signal) => {
+      this.log.info(`Process exited: code=${code}, signal=${signal}`);
+
       // Flush remaining buffer
       if (buffer.trim()) {
         const event = this.parser.parseLine(buffer);
@@ -67,6 +87,7 @@ export class ClaudeCli extends EventEmitter {
     });
 
     this.process.on('error', (err) => {
+      this.log.error(`Process error: ${err.message}`);
       this.emit('event', {
         type: 'error',
         message: `Failed to start Claude CLI: ${err.message}`,
