@@ -1,4 +1,5 @@
 import { execFile } from 'child_process';
+import { buildCleanEnv } from '../claude/env';
 
 /**
  * Detect whether the Claude CLI has Linear MCP tools available.
@@ -6,7 +7,7 @@ import { execFile } from 'child_process';
  */
 export function detectLinearMcp(claudePath: string): Promise<boolean> {
   return new Promise((resolve) => {
-    execFile(claudePath, ['mcp', 'list'], { timeout: 5000 }, (err, stdout) => {
+    execFile(claudePath, ['mcp', 'list'], { timeout: 5000, env: buildCleanEnv() }, (err, stdout) => {
       if (err) {
         resolve(false);
         return;

@@ -12,6 +12,7 @@ export interface WorkflowState {
   phase: Phase;
   isRunning: boolean;
   isPaused: boolean;
+  isThinking: boolean;
   gateActive: boolean;
   gatePrompt?: string;
   gateOptions?: string[];
@@ -36,6 +37,7 @@ export function createFreshState(): WorkflowState {
     phase: 'research',
     isRunning: false,
     isPaused: false,
+    isThinking: false,
     gateActive: false,
     refinementCount: 0,
     log: [],

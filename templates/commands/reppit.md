@@ -11,12 +11,7 @@ Input: A topic, feature description, or issue identifier.
 
 Follow the instructions in `.claude/commands/research-codebase.md`.
 
-After completing research, present the findings summary to the user.
-
-**Gate 1 — Research Review:**
-<!-- GATE:research:prompt:Research complete. OK to proceed to proposals, or do you have feedback? -->
-- If the user gives feedback → refine the research and present again. Loop until OK.
-- If OK → proceed to Phase 2.
+After completing research, present a brief findings summary and immediately proceed to Phase 2.
 
 ## Phase 2 — Propose
 
@@ -24,12 +19,7 @@ After completing research, present the findings summary to the user.
 
 Follow the instructions in `.claude/commands/make-proposals.md`, using the research from Phase 1.
 
-Present both proposals to the user.
-
-**Gate 2 — Proposal Review:**
-<!-- GATE:propose:options:1,2:prompt:Which proposal do you prefer (1 or 2), or do you have feedback to refine? -->
-- If the user gives feedback → refine proposals and present again. Loop until a choice is made.
-- If the user picks one → proceed to Phase 3 with the chosen proposal.
+Present both proposals briefly, pick the stronger one (or the one that better fits the codebase conventions), and proceed to Phase 3.
 
 ## Phase 3 — Plan
 
@@ -37,10 +27,10 @@ Present both proposals to the user.
 
 Follow the instructions in `.claude/commands/make-plan.md`, using the chosen proposal from Phase 2.
 
-Present the plan (issues or local `.md` files) to the user.
+Present the full plan (issues or local `.md` files) to the user.
 
-**Gate 3 — Plan Review:**
-<!-- GATE:plan:prompt:Plan created. OK to start implementing, or do you want changes? -->
+**Gate — Plan Review:**
+<!-- GATE:plan:prompt:Plan ready for review. OK to start implementing, or do you want changes? -->
 - If the user gives feedback → update the plan and present again. Loop until OK.
 - If OK → proceed to Phase 4.
 
@@ -51,22 +41,19 @@ Present the plan (issues or local `.md` files) to the user.
 For each sub-issue or task created in Phase 3, in order:
 
 1. Follow `.claude/commands/implement.md` for the sub-issue.
+2. After implementing each sub-issue, commit and move to the next.
 
-**Gate 4 — Implementation Review (per sub-issue):**
-<!-- GATE:implement:prompt:Sub-issue implemented. Commit and move to next? -->
-- If the user gives feedback → refine and present again. Loop until OK.
-- If OK → commit, move to next sub-issue.
+When all sub-issues are implemented, proceed to Phase 5.
 
 ## Phase 5 — Test
 
 <!-- PHASE:test -->
 
-After all sub-issues are implemented, follow `.claude/commands/review-code.md` to review all changes.
+Follow `.claude/commands/review-code.md` to review all changes.
 
-**Gate 5 — Test Review:**
-- If review has action items → fix them and re-review. Loop until clean.
-<!-- GATE:test:prompt:All tests and review passed. Proceed to security check? -->
-- If OK → proceed to Phase 6.
+- If review has action items → fix them and re-review.
+- Loop (implement fix → re-test) until the review is clean.
+- When clean, proceed to Phase 6.
 
 ## Phase 6 — Secure
 
@@ -91,20 +78,18 @@ For each HITRUST checklist item, emit:
 <!-- SECURE_ITEM:pass|warn|fail:Check Name:Detail about the finding -->
 <!-- SECURE:hitrust:END -->
 
-**Gate 6 — Security Review:**
 - If there are FAIL items:
   1. Fix the security issues (back to Implement)
   2. Re-run Test (Phase 5) to verify fixes don't break anything
   3. Re-run Secure to check again
   4. Repeat Implement → Test → Secure until no FAIL items remain
-- WARN items: present to user for acknowledgment.
-<!-- GATE:secure:prompt:Security check passed. Ready to commit and push? -->
-- If OK → commit all changes.
+- WARN items: note them in the summary.
+- When all checks pass, commit all changes.
 
 <!-- DONE -->
 
 ## Rules
-- NEVER skip a gate. Always wait for explicit user approval before advancing.
+- Present the plan at the Plan phase gate and wait for explicit user approval before implementing.
+- All other phases proceed automatically — do not wait for user input.
 - Keep all context between phases — don't re-read files you already have in context.
 - If the user says "stop" or "pause" at any point, halt and summarize current state.
-- If the user wants to skip a phase, confirm and jump ahead.

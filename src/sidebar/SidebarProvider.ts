@@ -322,6 +322,40 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             font-size: 11px;
             opacity: 0.7;
           }
+
+          /* --- Text vs tool line styling --- */
+          .output .line-text {
+            font-family: var(--vscode-font-family);
+            font-size: 13px;
+            line-height: 1.6;
+            padding: 2px 0;
+          }
+          .output .line-tool {
+            color: var(--vscode-descriptionForeground);
+            font-size: 11px;
+            opacity: 0.55;
+            padding-left: 8px;
+            border-left: 2px solid var(--vscode-panel-border);
+            margin: 1px 0;
+          }
+          .output .line-system {
+            color: var(--vscode-descriptionForeground);
+            font-size: 11px;
+            opacity: 0.5;
+          }
+
+          /* --- Activity indicator --- */
+          .activity-bar {
+            height: 2px;
+            background: var(--vscode-progressBar-background, var(--vscode-charts-blue));
+            animation: activity-slide 1.5s ease-in-out infinite;
+            flex-shrink: 0;
+          }
+          @keyframes activity-slide {
+            0% { width: 0; margin-left: 0; }
+            50% { width: 60%; margin-left: 20%; }
+            100% { width: 0; margin-left: 100%; }
+          }
         </style>
       </head>
       <body>
@@ -333,6 +367,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           </label>
         </div>
         <div id="status-bar" class="status-bar" style="display:none;"></div>
+        <div id="activity" class="activity-bar" style="display:none;"></div>
         <div id="output" class="output">
           <div class="empty-state">
             <p><strong>RePPIT Health</strong></p>
@@ -362,37 +397,23 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           const outputEl = document.getElementById('output');
           const stepperEl = document.getElementById('stepper');
           const statusBarEl = document.getElementById('status-bar');
+          const activityEl = document.getElementById('activity');
           const gateEl = document.getElementById('gate');
           const traceToggleEl = document.getElementById('trace-toggle');
           let traceEnabled = false;
 
-          function debugLog(msg) {
-            console.log('[RePPIT Debug] ' + msg);
-            const div = document.createElement('div');
-            div.className = 'line';
-            div.style.color = 'var(--vscode-descriptionForeground)';
-            div.textContent = '[debug] ' + msg;
-            outputEl.appendChild(div);
-            outputEl.scrollTop = outputEl.scrollHeight;
-          }
-
-          // Enter to send
           inputEl.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
-              debugLog('Enter key pressed');
               handleSend();
             }
           });
 
-          // Trace toggle
           traceToggleEl.addEventListener('click', () => {
             vscode.postMessage({ type: 'toggle-trace' });
           });
 
-          // Unified click handler — adapts to Start or Stop based on state
           sendBtn.addEventListener('click', () => {
-            debugLog('Button clicked, state=' + JSON.stringify({isRunning: state?.isRunning, phase: state?.phase, disabled: sendBtn.disabled}));
             if (!state || !state.isRunning) {
               handleSend();
             } else {
@@ -402,19 +423,15 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
           window.addEventListener('message', (event) => {
             const msg = event.data;
-            debugLog('Message from extension: type=' + msg.type);
             if (msg.type === 'state-update') {
               state = msg.state;
-              // Clear the safety timeout since we got a response
               if (startTimeout) { clearTimeout(startTimeout); startTimeout = null; }
               render();
             } else if (msg.type === 'trace-updated') {
               traceEnabled = msg.enabled;
               traceToggleEl.classList.toggle('active', traceEnabled);
-              debugLog('Trace ' + (traceEnabled ? 'enabled' : 'disabled'));
             } else if (msg.type === 'debug') {
-              debugLog('Extension says: ' + msg.text);
-              // Re-enable button on error
+              console.log('Extension debug:', msg.text);
               sendBtn.disabled = false;
               sendBtn.textContent = 'Start';
             }
@@ -422,9 +439,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
           function handleSend() {
             const value = inputEl.value.trim();
-            debugLog('handleSend called, value="' + value + '", state.isRunning=' + state?.isRunning);
             if (!value) {
-              debugLog('Empty input, showing validation error');
               inputEl.style.borderColor = 'var(--vscode-inputValidation-errorBorder, red)';
               inputEl.placeholder = 'Please enter a description first...';
               setTimeout(() => {
@@ -435,49 +450,51 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             }
 
             if (!state || !state.isRunning) {
-              // Show immediate feedback before async command runs
               outputEl.innerHTML = '';
               prevLogLength = 0;
               sendBtn.textContent = 'Starting...';
               sendBtn.disabled = true;
-
-              debugLog('Posting start message with input: "' + value + '"');
-
-              // Start workflow
               vscode.postMessage({ type: 'start', payload: { input: value } });
               inputEl.value = '';
 
-              // Safety timeout: if no state update arrives in 8s, re-enable the button
               if (startTimeout) { clearTimeout(startTimeout); }
               startTimeout = setTimeout(() => {
-                debugLog('TIMEOUT: No state update received after 8s — re-enabling button');
                 sendBtn.disabled = false;
                 sendBtn.textContent = 'Start';
               }, 8000);
             } else if (state.gateActive) {
-              debugLog('Sending gate refine feedback');
-              // Send as refine feedback
               vscode.postMessage({
                 type: 'gate-response',
                 payload: { action: 'refine', feedback: value }
               });
               inputEl.value = '';
             }
-            // Don't clear input if running but not at a gate — user keeps their text
           }
 
           function sendGate(action, feedback, selection) {
             vscode.postMessage({ type: 'gate-response', payload: { action, feedback, selection } });
           }
 
+          function classifyLine(line) {
+            if (line.startsWith('[ERROR]')) return 'line line-error';
+            if (line.startsWith('[trace]')) return 'line line-trace';
+            if (line.startsWith('[warn]')) return 'line line-system';
+            if (/^(\\u{1F527}|\\u{1F916}|🔧|🤖)/.test(line) || line.match(/^.\\uFE0F?\\u20E3? ?(Read|Edit|Write|Bash|Glob|Grep|Agent|WebFetch|WebSearch|ToolSearch|TodoWrite|Skill|NotebookEdit)/)) return 'line line-tool';
+            if (line.startsWith('── Phase:')) return 'line line-phase';
+            if (line === 'Connected') return 'line line-system';
+            return 'line line-text';
+          }
+
           function render() {
             if (!state) return;
 
-            // Sync trace toggle with state
             if (state.claudeTrace !== undefined) {
               traceEnabled = state.claudeTrace;
               traceToggleEl.classList.toggle('active', traceEnabled);
             }
+
+            // --- Activity indicator ---
+            activityEl.style.display = state.isThinking ? 'block' : 'none';
 
             // --- Stepper ---
             if (state.isRunning || state.phase === 'done') {
@@ -498,14 +515,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
               let left = '';
               let right = '';
 
-              // Linear badge
               if (state.linearAvailable) {
                 left += '<span class="badge badge-pass">Linear</span>';
               } else {
                 left += '<span class="badge badge-muted">Local</span>';
               }
 
-              // Compliance badges
               const comp = state.security || {};
               Object.keys(comp).forEach(fw => {
                 const items = comp[fw]?.items || [];
@@ -516,7 +531,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 left += '<span class="badge ' + cls + '">' + fw.toUpperCase() + ' ' + label + '</span>';
               });
 
-              // Refinement count
               if (state.refinementCount > 0) {
                 right += '<span class="badge badge-info">Refined ' + state.refinementCount + 'x</span>';
               }
@@ -528,21 +542,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
             // --- Output log ---
             if (state.log && state.log.length > 0) {
-              // Append only new lines for performance
               if (state.log.length > prevLogLength) {
-                // Clear empty state on first log
                 if (prevLogLength === 0) {
                   outputEl.innerHTML = '';
                 }
                 const newLines = state.log.slice(prevLogLength);
                 newLines.forEach(line => {
                   const div = document.createElement('div');
-                  div.className = 'line';
-                  if (line.startsWith('[ERROR]')) {
-                    div.className = 'line line-error';
-                  } else if (line.startsWith('[trace]')) {
-                    div.className = 'line line-trace';
-                  }
+                  div.className = classifyLine(line);
                   div.textContent = line;
                   outputEl.appendChild(div);
                 });
@@ -553,9 +560,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
               prevLogLength = 0;
               outputEl.innerHTML = '<div class="empty-state"><p><strong>RePPIT Health</strong></p><p>Enter a task below to start the workflow</p></div>';
             }
-
-            // Phase change markers in log
-            // (handled by engine emitting log lines)
 
             // --- Gate ---
             if (state.gateActive && state.gatePrompt) {
@@ -592,18 +596,17 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
               gateEl.appendChild(gateActions);
 
-              // Update input placeholder for gate context
               inputEl.placeholder = 'Type feedback to refine, or use buttons above...';
             } else {
               gateEl.style.display = 'none';
               if (state.isRunning) {
-                inputEl.placeholder = 'Waiting for Claude...';
+                inputEl.placeholder = 'Claude is working...';
               } else {
                 inputEl.placeholder = 'Describe a feature or paste an issue ID...';
               }
             }
 
-            // --- Send button (text/style only — click handler is a single addEventListener above) ---
+            // --- Button ---
             sendBtn.disabled = false;
             if (!state.isRunning) {
               sendBtn.textContent = 'Start';
@@ -613,7 +616,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
               sendBtn.className = 'stop';
             }
 
-            // --- Done state ---
+            // --- Done ---
             if (state.phase === 'done' && !state.isRunning) {
               const doneDiv = document.createElement('div');
               doneDiv.className = 'line line-phase';
@@ -627,9 +630,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             }
           }
 
-          function escapeHtml(str) {
-            return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-          }
         </script>
       </body>
       </html>

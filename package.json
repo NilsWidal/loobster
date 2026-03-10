@@ -62,6 +62,10 @@
       {
         "command": "reppithealth.initTemplates",
         "title": "RePPIT: Initialize Project Templates"
+      },
+      {
+        "command": "reppithealth.testCli",
+        "title": "RePPIT: Test Claude CLI Connection"
       }
     ],
     "configuration": {
