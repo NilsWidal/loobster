@@ -14,6 +14,9 @@ export class OutputParser {
     items: ComplianceItem[];
   } | null = null;
 
+  /** Session ID captured from the CLI init event, used for --resume. */
+  public sessionId: string | null = null;
+
   /** Accumulates streaming text deltas into complete lines/paragraphs. */
   private textBuffer = '';
 
@@ -81,6 +84,7 @@ export class OutputParser {
 
       case 'system': {
         if (json.subtype === 'init') {
+          this.sessionId = json.session_id || json.sessionId || null;
           return [{ type: 'log', text: 'Connected' }];
         }
         return [];

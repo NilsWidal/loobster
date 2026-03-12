@@ -330,6 +330,56 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             line-height: 1.6;
             padding: 2px 0;
           }
+          /* --- Markdown elements inside text lines --- */
+          .output .line-text h2, .output .line-text h3, .output .line-text h4, .output .line-text h5 {
+            margin: 10px 0 4px;
+            line-height: 1.3;
+          }
+          .output .line-text h2 { font-size: 15px; }
+          .output .line-text h3 { font-size: 14px; }
+          .output .line-text h4 { font-size: 13px; }
+          .output .line-text h5 { font-size: 12px; }
+          .output .line-text table {
+            border-collapse: collapse;
+            margin: 6px 0;
+            font-size: 11px;
+            width: 100%;
+          }
+          .output .line-text th, .output .line-text td {
+            border: 1px solid var(--vscode-panel-border);
+            padding: 3px 8px;
+            text-align: left;
+          }
+          .output .line-text th {
+            background: var(--vscode-editor-background);
+            font-weight: 600;
+          }
+          .output .line-text code {
+            background: var(--vscode-editor-background);
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-family: var(--vscode-editor-font-family, monospace);
+          }
+          .output .line-text pre {
+            white-space: pre;
+            word-break: normal;
+          }
+          .output .line-text pre code {
+            padding: 0;
+            background: none;
+          }
+          .output .line-text ul, .output .line-text ol {
+            margin: 2px 0;
+            padding-left: 20px;
+          }
+          .output .line-text li { margin: 1px 0; }
+          .output .line-text hr {
+            border: none;
+            border-top: 1px solid var(--vscode-panel-border);
+            margin: 8px 0;
+          }
+          .output .line-text p { margin: 2px 0; }
           .output .line-tool {
             color: var(--vscode-descriptionForeground);
             font-size: 11px;
@@ -421,10 +471,18 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             }
           });
 
+          // Restore state if webview was hidden and re-created
+          const savedState = vscode.getState();
+          if (savedState && savedState.workflowState) {
+            state = savedState.workflowState;
+            render();
+          }
+
           window.addEventListener('message', (event) => {
             const msg = event.data;
             if (msg.type === 'state-update') {
               state = msg.state;
+              vscode.setState({ workflowState: state });
               if (startTimeout) { clearTimeout(startTimeout); startTimeout = null; }
               render();
             } else if (msg.type === 'trace-updated') {
@@ -449,26 +507,34 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
               return;
             }
 
-            if (!state || !state.isRunning) {
-              outputEl.innerHTML = '';
-              prevLogLength = 0;
-              sendBtn.textContent = 'Starting...';
-              sendBtn.disabled = true;
-              vscode.postMessage({ type: 'start', payload: { input: value } });
-              inputEl.value = '';
-
-              if (startTimeout) { clearTimeout(startTimeout); }
-              startTimeout = setTimeout(() => {
-                sendBtn.disabled = false;
-                sendBtn.textContent = 'Start';
-              }, 8000);
-            } else if (state.gateActive) {
+            // Gate active — send as refinement feedback
+            if (state && state.gateActive) {
               vscode.postMessage({
                 type: 'gate-response',
                 payload: { action: 'refine', feedback: value }
               });
               inputEl.value = '';
+              return;
             }
+
+            // Workflow is running (no gate) — ignore input
+            if (state && state.isRunning) {
+              return;
+            }
+
+            // Not running — start a new workflow
+            outputEl.innerHTML = '';
+            prevLogLength = 0;
+            sendBtn.textContent = 'Starting...';
+            sendBtn.disabled = true;
+            vscode.postMessage({ type: 'start', payload: { input: value } });
+            inputEl.value = '';
+
+            if (startTimeout) { clearTimeout(startTimeout); }
+            startTimeout = setTimeout(() => {
+              sendBtn.disabled = false;
+              sendBtn.textContent = 'Start';
+            }, 8000);
           }
 
           function sendGate(action, feedback, selection) {
@@ -483,6 +549,90 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             if (line.startsWith('── Phase:')) return 'line line-phase';
             if (line === 'Connected') return 'line line-system';
             return 'line line-text';
+          }
+
+          // --- Lightweight Markdown renderer ---
+          function escHtml(s) {
+            return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          }
+          function inlineMd(s) {
+            s = s.replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>');
+            s = s.replace(/\\*(.+?)\\*/g, '<em>$1</em>');
+            s = s.replace(/\`([^\`]+)\`/g, '<code>$1</code>');
+            return s;
+          }
+          function renderMarkdown(raw) {
+            const lines = raw.split('\\n');
+            const out = [];
+            let i = 0;
+            while (i < lines.length) {
+              const esc = escHtml(lines[i]);
+              const t = esc.trim();
+              if (!t) { i++; continue; }
+              // Fenced code block (use hex \\x60 for backtick to avoid template literal issues)
+              if (/^\\x60\\x60\\x60/.test(lines[i].trim())) {
+                i++;
+                const codeLines = [];
+                while (i < lines.length && !/^\\x60\\x60\\x60/.test(lines[i].trim())) {
+                  codeLines.push(escHtml(lines[i]));
+                  i++;
+                }
+                if (i < lines.length) i++; // skip closing fence
+                out.push('<pre style="background:var(--vscode-editor-background);padding:8px;border-radius:4px;overflow-x:auto;font-size:11px;margin:6px 0;"><code>' + codeLines.join('\\n') + '</code></pre>');
+                continue;
+              }
+              // Horizontal rule
+              if (/^-{3,}$/.test(t)) { out.push('<hr>'); i++; continue; }
+              // Headers
+              const hm = t.match(/^(#{1,4})\\s+(.+)$/);
+              if (hm) {
+                const lvl = Math.min(hm[1].length + 1, 6);
+                out.push('<h'+lvl+'>'+inlineMd(hm[2])+'</h'+lvl+'>');
+                i++; continue;
+              }
+              // Table block
+              if (t.startsWith('|') && t.endsWith('|')) {
+                let tbl = '<table>';
+                let first = true;
+                while (i < lines.length) {
+                  const row = escHtml(lines[i]).trim();
+                  if (!row.startsWith('|') || !row.endsWith('|')) break;
+                  if (/^\\|[\\s\\-:|]+\\|$/.test(row)) { i++; continue; }
+                  const cells = row.split('|').slice(1,-1);
+                  const tag = first ? 'th' : 'td';
+                  tbl += '<tr>'+cells.map(c=>'<'+tag+'>'+inlineMd(c.trim())+'</'+tag+'>').join('')+'</tr>';
+                  first = false; i++;
+                }
+                tbl += '</table>';
+                out.push(tbl); continue;
+              }
+              // Unordered list block
+              if (/^[-*]\\s+/.test(t)) {
+                let ul = '<ul>';
+                while (i < lines.length) {
+                  const ll = escHtml(lines[i]).trim();
+                  const m = ll.match(/^[-*]\\s+(.+)$/);
+                  if (!m) break;
+                  ul += '<li>'+inlineMd(m[1])+'</li>'; i++;
+                }
+                ul += '</ul>'; out.push(ul); continue;
+              }
+              // Ordered list block
+              if (/^\\d+\\.\\s+/.test(t)) {
+                let ol = '<ol>';
+                while (i < lines.length) {
+                  const ll = escHtml(lines[i]).trim();
+                  const m = ll.match(/^\\d+\\.\\s+(.+)$/);
+                  if (!m) break;
+                  ol += '<li>'+inlineMd(m[1])+'</li>'; i++;
+                }
+                ol += '</ol>'; out.push(ol); continue;
+              }
+              // Regular paragraph
+              out.push('<p>'+inlineMd(t)+'</p>');
+              i++;
+            }
+            return out.join('');
           }
 
           function render() {
@@ -542,16 +692,38 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
             // --- Output log ---
             if (state.log && state.log.length > 0) {
+              // Detect log reset (new workflow started) — re-render from scratch
+              if (state.log.length < prevLogLength) {
+                prevLogLength = 0;
+                outputEl.innerHTML = '';
+              }
               if (state.log.length > prevLogLength) {
                 if (prevLogLength === 0) {
                   outputEl.innerHTML = '';
                 }
                 const newLines = state.log.slice(prevLogLength);
                 newLines.forEach(line => {
-                  const div = document.createElement('div');
-                  div.className = classifyLine(line);
-                  div.textContent = line;
-                  outputEl.appendChild(div);
+                  const cls = classifyLine(line);
+                  const lastChild = outputEl.lastElementChild;
+
+                  // Combine consecutive text lines and render as markdown (cap at 200 lines per block)
+                  const rawLines = lastChild ? (lastChild.dataset.raw || '').split('\\n').length : 0;
+                  if (cls === 'line line-text' && lastChild && lastChild.className === 'line line-text' && rawLines < 200) {
+                    const raw = (lastChild.dataset.raw || '') + '\\n' + line;
+                    lastChild.dataset.raw = raw;
+                    lastChild.innerHTML = renderMarkdown(raw);
+                  } else if (cls === 'line line-text') {
+                    const div = document.createElement('div');
+                    div.className = cls;
+                    div.dataset.raw = line;
+                    div.innerHTML = renderMarkdown(line);
+                    outputEl.appendChild(div);
+                  } else {
+                    const div = document.createElement('div');
+                    div.className = cls;
+                    div.textContent = line;
+                    outputEl.appendChild(div);
+                  }
                 });
                 prevLogLength = state.log.length;
                 outputEl.scrollTop = outputEl.scrollHeight;
@@ -583,20 +755,21 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 });
               } else {
                 const okBtn = document.createElement('button');
-                okBtn.textContent = 'OK, proceed';
+                okBtn.textContent = 'Approve & Implement';
                 okBtn.addEventListener('click', () => sendGate('ok'));
                 gateActions.appendChild(okBtn);
               }
 
-              const skipBtn = document.createElement('button');
-              skipBtn.className = 'secondary';
-              skipBtn.textContent = 'Skip';
-              skipBtn.addEventListener('click', () => sendGate('skip'));
-              gateActions.appendChild(skipBtn);
+              const ticketsBtn = document.createElement('button');
+              ticketsBtn.className = 'secondary';
+              ticketsBtn.textContent = 'Create Tickets';
+              ticketsBtn.title = 'Create Linear issues or local .md files from the plan';
+              ticketsBtn.addEventListener('click', () => sendGate('create-tickets'));
+              gateActions.appendChild(ticketsBtn);
 
               gateEl.appendChild(gateActions);
 
-              inputEl.placeholder = 'Type feedback to refine, or use buttons above...';
+              inputEl.placeholder = 'Type refinement feedback and press Enter...';
             } else {
               gateEl.style.display = 'none';
               if (state.isRunning) {

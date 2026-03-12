@@ -1,6 +1,6 @@
 import { Phase, ComplianceItem } from '../claude/types';
 
-export type GateAction = 'ok' | 'refine' | 'skip' | 'pause';
+export type GateAction = 'ok' | 'refine' | 'pause' | 'create-tickets';
 
 export interface GateResponse {
   action: GateAction;

@@ -20,7 +20,7 @@ export class ClaudeCli extends EventEmitter {
     super();
   }
 
-  start(prompt: string, cwd?: string, systemPrompt?: string, continueSession = false): void {
+  start(prompt: string, cwd?: string, systemPrompt?: string, resumeSessionId?: string): void {
     // Clean up any previous process listeners to prevent stale events
     if (this.process) {
       this.process.stdout?.removeAllListeners();
@@ -32,15 +32,17 @@ export class ClaudeCli extends EventEmitter {
     this.parser = new OutputParser();
 
     const args: string[] = [];
-    if (this.autoApprove) args.push('--dangerously-skip-permissions');
+    // The extension manages its own gates (plan review, etc.).
+    // Skip CLI permission prompts so Claude runs unblocked.
+    args.push('--dangerously-skip-permissions');
     // --verbose is REQUIRED for stream-json with -p (Claude CLI ≥2.1.72)
     // --include-partial-messages streams text/tool events as they arrive
     args.push('--output-format', 'stream-json', '--verbose', '--include-partial-messages');
     args.push('--no-chrome');
-    if (continueSession) {
-      args.push('--continue');
+    if (resumeSessionId) {
+      args.push('--resume', resumeSessionId);
     }
-    if (systemPrompt && !continueSession) {
+    if (systemPrompt) {
       args.push('--append-system-prompt', systemPrompt);
     }
     args.push('-p', prompt);
@@ -171,5 +173,10 @@ export class ClaudeCli extends EventEmitter {
 
   get isRunning(): boolean {
     return this.process !== null && !this.process.killed;
+  }
+
+  /** Session ID from the most recent CLI invocation (captured from init event). */
+  get sessionId(): string | null {
+    return this.parser.sessionId;
   }
 }

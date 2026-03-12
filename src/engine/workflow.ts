@@ -11,6 +11,12 @@ import type { SidebarProvider } from '../sidebar/SidebarProvider';
 export class WorkflowEngine {
   private state: WorkflowState = createFreshState();
   private workspaceFolder: string | undefined;
+  /** Tracks which segment of the two-call workflow we're in.
+   *  'planning' = first CLI call (Research → Propose → Plan)
+   *  'implementing' = second CLI call (Implement → Test → Secure) */
+  private segment: 'planning' | 'implementing' = 'planning';
+  /** Session ID from the planning call, used for --resume in continuation. */
+  private planningSessionId: string | null = null;
 
   constructor(
     private cli: ClaudeCli,
@@ -43,7 +49,7 @@ export class WorkflowEngine {
       ? 'Linear MCP tools are available. Use them for documents, issues, and comments.'
       : 'Linear is NOT available. Save all outputs as local .md files in research/ and plans/ directories.';
 
-    // Build system prompt from the reppit template
+    // Build system prompt from the planning template
     const templatePath = path.join(this.extensionRoot, 'templates', 'commands', 'reppit.md');
     let reppitTemplate = '';
     try {
@@ -59,12 +65,14 @@ export class WorkflowEngine {
     const systemPrompt = `${linearContext}\n\n${reppitTemplate}`;
 
     this.workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    this.segment = 'planning';
+    this.planningSessionId = null;
 
     this.log.info(`Starting CLI in cwd="${this.workspaceFolder}"`);
     this.updateSidebar();
 
     this.cli.start(input, this.workspaceFolder, systemPrompt);
-    this.log.info('CLI process spawned');
+    this.log.info('CLI process spawned (planning segment)');
   }
 
   stop(): void {
@@ -85,31 +93,66 @@ export class WorkflowEngine {
     }
 
     // The CLI process has already exited (one-shot -p mode).
-    // Start a NEW CLI call with --continue to resume the conversation.
+    // Start a NEW CLI call with --resume to continue the conversation.
     let prompt: string;
-    if (response.action === 'refine') {
+    let implementSystemPrompt: string | undefined;
+
+    if (response.action === 'create-tickets') {
+      this.segment = 'planning'; // stay in planning — gate will re-appear
+      const linearHint = this.state.linearAvailable
+        ? 'Create Linear issues for each task in the plan.'
+        : 'Create a .md file in the plans/ directory for each task in the plan.';
+      prompt = `${linearHint} After creating tickets, present the updated plan with references.`;
+    } else if (response.action === 'refine') {
       this.state.refinementCount++;
+      this.segment = 'planning'; // stay in planning for refinement
       prompt = response.feedback ?? 'Please refine the plan.';
     } else if (response.action === 'ok') {
       this.state.refinementCount = 0;
+      this.segment = 'implementing';
+      this.state.phase = 'implement';
       const selection = response.selection;
       prompt = selection
         ? `OK, go with ${selection}. Proceed with implementation.`
-        : 'OK, proceed with the implementation.';
+        : 'OK, the plan is approved. Proceed with implementation.';
+      implementSystemPrompt = this.loadImplementTemplate();
     } else {
-      // skip
-      this.state.refinementCount = 0;
-      prompt = 'Skip the plan review and proceed directly to implementation.';
+      this.log.warn(`Unexpected gate action: ${response.action}`);
+      return;
     }
 
-    this.log.info(`Gate response: ${response.action} — continuing session with: "${prompt}"`);
+    if (!this.planningSessionId) {
+      this.log.warn('No planning session ID available — resume will start a fresh conversation');
+    }
+
+    this.log.info(`Gate response: ${response.action}, sessionId=${this.planningSessionId}, prompt="${prompt}"`);
     this.state.isRunning = true;
     this.updateSidebar();
-    this.cli.start(prompt, this.workspaceFolder, undefined, true);
+
+    // Use --resume with the planning session ID for reliable continuation
+    this.cli.start(prompt, this.workspaceFolder, implementSystemPrompt, this.planningSessionId ?? undefined);
+  }
+
+  private loadImplementTemplate(): string | undefined {
+    const templatePath = path.join(this.extensionRoot, 'templates', 'commands', 'reppit-implement.md');
+    try {
+      const template = fs.readFileSync(templatePath, 'utf-8');
+      this.log.info(`Loaded implement template (${template.length} chars)`);
+      return template;
+    } catch (err) {
+      this.log.warn(`Could not load implement template: ${err}`);
+      return undefined;
+    }
   }
 
   private handleEvent(event: ClaudeEvent): void {
     this.log.info(`CLI event: ${event.type}${'text' in event ? ` "${event.text.substring(0, 80)}"` : ''}`);
+
+    // Capture session ID from the CLI for --resume
+    const sessionId = this.cli.sessionId;
+    if (sessionId && this.segment === 'planning') {
+      this.planningSessionId = sessionId;
+    }
 
     switch (event.type) {
       case 'phase':
@@ -151,12 +194,32 @@ export class WorkflowEngine {
         if (!this.state.isRunning) break; // guard against duplicate done events
 
         if (this.state.gateActive) {
-          // CLI exited (one-shot -p mode) but gate is waiting for user input.
-          // Don't complete the workflow — keep it paused at the gate.
+          // Gate marker was detected and CLI exited — keep waiting at gate
           this.log.info('CLI exited at gate — waiting for user response');
           break;
         }
 
+        if (this.segment === 'planning') {
+          // First CLI call finished (Research → Propose → Plan).
+          // Always show the plan gate so the user can review before implementation.
+          this.log.info(`Planning segment complete — showing plan gate (sessionId=${this.planningSessionId})`);
+          this.state.phase = 'plan';
+          this.state.gateActive = true;
+          this.state.gatePrompt = 'Plan ready for review. OK to start implementing, or do you want changes?';
+          this.state.gateOptions = undefined;
+          if (this.config.get<boolean>('notifications.sound', true)) {
+            playGateSound();
+          }
+          if (this.config.get<boolean>('notifications.system', true)) {
+            vscode.window.showInformationMessage(
+              'RePPIT Health: Plan ready for review',
+              'Open Sidebar'
+            );
+          }
+          break;
+        }
+
+        // Implementation segment done — workflow complete
         this.log.info('Workflow done');
         this.state.phase = 'done';
         this.state.isRunning = false;

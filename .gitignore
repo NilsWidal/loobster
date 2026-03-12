@@ -7,3 +7,5 @@ webview/dist/
 *.log
 .claude/
 package-lock.json
+plans/
+research/
