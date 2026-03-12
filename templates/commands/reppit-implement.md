@@ -4,10 +4,20 @@ Continue the RePPITS workflow. The plan has been approved — now execute Implem
 
 <!-- PHASE:implement -->
 
+## Task Tracking
+
+Before starting implementation:
+1. Call `TaskList` to see all current tasks and their statuses.
+2. Identify the next `open` task to work on.
+3. If all tasks are already `completed`, skip to Phase 5 (Test).
+
 For each sub-task in the approved plan, in order:
 
-1. Follow `.claude/commands/implement.md` if available.
-2. After implementing each sub-task, commit and move to the next.
+1. Call `TaskUpdate` to set the task status to `in_progress`.
+2. Follow `.claude/commands/implement.md` if available.
+3. After implementing each sub-task, commit the changes.
+4. Call `TaskUpdate` to set the task status to `completed`.
+5. Move to the next open task.
 
 When all sub-tasks are implemented, proceed to Phase 5.
 

@@ -27,6 +27,7 @@ export interface WorkflowState {
     total: number;
     current: number;
   };
+  tasks: { id: string; title: string; status: string }[];
   linearAvailable: boolean;
   claudeTrace: boolean;
 }
@@ -43,6 +44,7 @@ export function createFreshState(): WorkflowState {
     log: [],
     security: {},
     subIssues: { total: 0, current: 0 },
+    tasks: [],
     linearAvailable: false,
     claudeTrace: false,
   };

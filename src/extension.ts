@@ -5,6 +5,7 @@ import { WorkflowEngine } from './engine/workflow';
 import { ClaudeCli } from './claude/cli';
 import { scaffoldTemplates } from './templates/scaffold';
 import { buildCleanEnv } from './claude/env';
+import { pollTasks } from './claude/tasks';
 
 let engine: WorkflowEngine | undefined;
 const log = vscode.window.createOutputChannel('RePPIT Health', { log: true });
@@ -102,6 +103,78 @@ export function activate(context: vscode.ExtensionContext) {
         engine.stop();
         engine = undefined;
         vscode.window.showInformationMessage('RePPITHealth workflow stopped.');
+      }
+    })
+  );
+
+  // --- Resume command: reconstruct workflow from persisted tasks ---
+  context.subscriptions.push(
+    vscode.commands.registerCommand('reppithealth.resume', async () => {
+      log.info('reppithealth.resume command fired');
+
+      const config = vscode.workspace.getConfiguration('reppithealth');
+      const claudePath = config.get<string>('claudePath', 'claude');
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+      const result = await pollTasks(claudePath, workspaceFolder);
+
+      if (result.total === 0) {
+        vscode.window.showInformationMessage('No previous workflow tasks found.');
+        return;
+      }
+
+      const incomplete = result.tasks.filter(t => t.status !== 'completed');
+      if (incomplete.length === 0) {
+        vscode.window.showInformationMessage(`All ${result.total} tasks are completed. Nothing to resume.`);
+        return;
+      }
+
+      const choice = await vscode.window.showQuickPick(
+        ['Resume', 'Start Fresh', 'Cancel'],
+        {
+          placeHolder: `Found ${result.total} tasks (${result.completed} completed, ${incomplete.length} remaining). Resume?`,
+        }
+      );
+
+      if (!choice || choice === 'Cancel') return;
+
+      if (choice === 'Start Fresh') {
+        await vscode.commands.executeCommand('reppithealth.start');
+        return;
+      }
+
+      // Resume: stop any existing engine and start a new one with task-aware prompt
+      if (engine) {
+        engine.stop();
+      }
+
+      const autoApprove = config.get<boolean>('autoApprove', false);
+      const claudeTrace = config.get<boolean>('claudeTrace', false);
+
+      const cli = new ClaudeCli(claudePath, autoApprove, claudeTrace, log);
+      engine = new WorkflowEngine(cli, sidebarProvider, config, log, context.extensionUri.fsPath);
+
+      // Pre-populate state with known task data
+      const resumePrompt = 'Use TaskList to check current tasks. Continue implementing the next incomplete task. After completing each task, call TaskUpdate to mark it as completed.';
+
+      try {
+        // Load implement template for the resumed session
+        const fs = await import('fs');
+        const path = await import('path');
+        const templatePath = path.join(context.extensionUri.fsPath, 'templates', 'commands', 'reppit-implement.md');
+        let implementTemplate: string | undefined;
+        try {
+          implementTemplate = fs.readFileSync(templatePath, 'utf-8');
+        } catch {
+          log.warn('Could not load implement template for resume');
+        }
+
+        cli.start(resumePrompt, workspaceFolder, implementTemplate);
+        log.info(`Resume: spawned CLI with ${incomplete.length} remaining tasks`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        log.error(`Resume failed: ${msg}`);
+        vscode.window.showErrorMessage(`RePPIT resume failed: ${msg}`);
       }
     })
   );

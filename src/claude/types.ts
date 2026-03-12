@@ -45,12 +45,27 @@ export interface DoneEvent {
   type: 'done';
 }
 
+export interface TaskCreatedEvent {
+  type: 'task-created';
+  taskId: string;
+  title: string;
+  status: string;
+}
+
+export interface TaskUpdatedEvent {
+  type: 'task-updated';
+  taskId: string;
+  status: string;
+}
+
 export type ClaudeEvent =
   | PhaseChangeEvent
   | GateRequestEvent
   | ComplianceResultEvent
   | LogLineEvent
   | ErrorEvent
-  | DoneEvent;
+  | DoneEvent
+  | TaskCreatedEvent
+  | TaskUpdatedEvent;
 
 export type SecurityFramework = 'hipaa' | 'soc2' | 'hitrust';

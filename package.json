@@ -64,6 +64,10 @@
         "title": "RePPIT: Initialize Project Templates"
       },
       {
+        "command": "reppithealth.resume",
+        "title": "RePPIT: Resume Previous Workflow"
+      },
+      {
         "command": "reppithealth.testCli",
         "title": "RePPIT: Test Claude CLI Connection"
       }
@@ -110,6 +114,12 @@
           "type": "boolean",
           "default": false,
           "description": "Enable verbose tracing of Claude CLI (adds --verbose --debug flags)"
+        },
+        "reppithealth.taskMode": {
+          "type": "string",
+          "enum": ["stream", "poll"],
+          "default": "stream",
+          "description": "Task tracking mode: 'stream' intercepts task events from CLI output, 'poll' reads tasks directly from Claude Code task storage (dev/experimental)"
         }
       }
     }

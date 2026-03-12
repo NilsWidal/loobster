@@ -681,6 +681,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 left += '<span class="badge ' + cls + '">' + fw.toUpperCase() + ' ' + label + '</span>';
               });
 
+              if (state.subIssues && state.subIssues.total > 0) {
+                var done = state.subIssues.current;
+                var total = state.subIssues.total;
+                var allDone = done === total;
+                var taskCls = allDone ? 'badge-pass' : 'badge-info';
+                right += '<span class="badge ' + taskCls + '">' + done + '/' + total + ' tasks</span>';
+              }
+
               if (state.refinementCount > 0) {
                 right += '<span class="badge badge-info">Refined ' + state.refinementCount + 'x</span>';
               }

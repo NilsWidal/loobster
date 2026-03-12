@@ -24,6 +24,9 @@ export class OutputParser {
   private toolInputBuffer = '';
   private currentToolName = '';
 
+  /** Queued task events to emit alongside the tool summary. */
+  private pendingTaskEvents: ClaudeEvent[] = [];
+
   /**
    * Parse a JSONL line. Returns an array of events (may be empty if buffering text,
    * or multiple if flushing a buffer before a non-text event).
@@ -132,6 +135,11 @@ export class OutputParser {
         const events: ClaudeEvent[] = [];
         const summary = this.summarizeTool(this.currentToolName, this.toolInputBuffer);
         events.push({ type: 'log', text: summary });
+        // Drain any task events queued during summarizeTool
+        if (this.pendingTaskEvents.length > 0) {
+          events.push(...this.pendingTaskEvents);
+          this.pendingTaskEvents = [];
+        }
         this.currentToolName = '';
         this.toolInputBuffer = '';
         return events;
@@ -235,6 +243,26 @@ export class OutputParser {
         case 'TodoWrite':
           detail = `${(input.todos || []).length} items`;
           break;
+        case 'TaskCreate': {
+          const title = input.title || input.description?.substring(0, 60) || '';
+          detail = title;
+          this.pendingTaskEvents.push({
+            type: 'task-created',
+            taskId: title, // use title as key for v1 (real ID comes in tool result)
+            title,
+            status: input.status || 'open',
+          });
+          break;
+        }
+        case 'TaskUpdate': {
+          detail = input.status ? `${input.id} → ${input.status}` : input.id || '';
+          this.pendingTaskEvents.push({
+            type: 'task-updated',
+            taskId: input.id || '',
+            status: input.status || '',
+          });
+          break;
+        }
         default:
           // MCP tools or others — try common field names
           detail = input.query || input.description || input.prompt || '';

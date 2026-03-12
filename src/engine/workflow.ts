@@ -6,6 +6,7 @@ import { ClaudeEvent, Phase } from '../claude/types';
 import { WorkflowState, GateResponse, createFreshState } from './types';
 import { playGateSound, playCompletionSound } from '../notifications/sound';
 import { detectLinearMcp } from '../linear/detector';
+import { pollTasks } from '../claude/tasks';
 import type { SidebarProvider } from '../sidebar/SidebarProvider';
 
 export class WorkflowEngine {
@@ -185,6 +186,28 @@ export class WorkflowEngine {
         this.state.log.push(event.text);
         break;
 
+      case 'task-created':
+        this.state.tasks.push({
+          id: event.taskId,
+          title: event.title,
+          status: event.status,
+        });
+        this.state.subIssues.total = this.state.tasks.length;
+        this.log.info(`Task created: "${event.title}" (total: ${this.state.subIssues.total})`);
+        break;
+
+      case 'task-updated': {
+        const task = this.state.tasks.find(t => t.id === event.taskId);
+        if (task) {
+          task.status = event.status;
+        }
+        this.state.subIssues.current = this.state.tasks.filter(
+          t => t.status === 'completed'
+        ).length;
+        this.log.info(`Task updated: "${event.taskId}" → ${event.status} (${this.state.subIssues.current}/${this.state.subIssues.total})`);
+        break;
+      }
+
       case 'error':
         this.log.error(`CLI error: ${event.message}`);
         this.state.log.push(`[ERROR] ${event.message}`);
@@ -217,6 +240,24 @@ export class WorkflowEngine {
             );
           }
           break;
+        }
+
+        // Poll-mode: sync task state from disk after CLI completes
+        if (this.config.get<string>('taskMode', 'stream') === 'poll') {
+          const claudePath = this.config.get<string>('claudePath', 'claude');
+          pollTasks(claudePath, this.workspaceFolder).then((result) => {
+            if (result.total > 0) {
+              this.state.tasks = result.tasks.map(t => ({
+                id: t.id, title: t.title, status: t.status,
+              }));
+              this.state.subIssues.total = result.total;
+              this.state.subIssues.current = result.completed;
+              this.log.info(`Poll-mode sync: ${result.completed}/${result.total} tasks completed`);
+              this.updateSidebar();
+            }
+          }).catch((err) => {
+            this.log.warn(`Poll-mode task sync failed: ${err}`);
+          });
         }
 
         // Implementation segment done — workflow complete
