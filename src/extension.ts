@@ -24,6 +24,30 @@ export function activate(context: vscode.ExtensionContext) {
 
   log.info('Sidebar provider registered');
 
+  // Non-blocking CLI detection — inform new users if Claude CLI is missing
+  {
+    const config = vscode.workspace.getConfiguration('reppithealth');
+    const claudePath = config.get<string>('claudePath', 'claude');
+    execFile(claudePath, ['--version'], { env: buildCleanEnv(), timeout: 5000 }, (err) => {
+      if (err) {
+        log.warn(`Claude CLI not found at "${claudePath}": ${err.message}`);
+        vscode.window.showWarningMessage(
+          `RePPIT Health requires Claude Code CLI but "${claudePath}" was not found.`,
+          'Install Claude Code',
+          'Configure Path'
+        ).then((choice) => {
+          if (choice === 'Install Claude Code') {
+            vscode.env.openExternal(vscode.Uri.parse('https://docs.anthropic.com/en/docs/claude-code/overview'));
+          } else if (choice === 'Configure Path') {
+            vscode.commands.executeCommand('workbench.action.openSettings', 'reppithealth.claudePath');
+          }
+        });
+      } else {
+        log.info(`Claude CLI detected at "${claudePath}"`);
+      }
+    });
+  }
+
   context.subscriptions.push(
     vscode.commands.registerCommand('reppithealth.start', async (sidebarInput?: string) => {
       log.info(`reppithealth.start command fired, sidebarInput=${sidebarInput ? `"${sidebarInput}"` : 'undefined'}`);
@@ -167,6 +191,18 @@ export function activate(context: vscode.ExtensionContext) {
           implementTemplate = fs.readFileSync(templatePath, 'utf-8');
         } catch {
           log.warn('Could not load implement template for resume');
+        }
+
+        // Prepend compliance context so resumed sessions respect framework settings
+        if (implementTemplate) {
+          const frameworks: string[] = [];
+          if (config.get<boolean>('compliance.hipaa', true)) frameworks.push('HIPAA');
+          if (config.get<boolean>('compliance.soc2', false)) frameworks.push('SOC2');
+          if (config.get<boolean>('compliance.hitrust', false)) frameworks.push('HITRUST');
+          const complianceCtx = frameworks.length > 0
+            ? `Enabled compliance frameworks: ${frameworks.join(', ')}. Only run security checks for these frameworks — skip any that are not listed.`
+            : 'All compliance frameworks are disabled. Skip the Secure phase entirely.';
+          implementTemplate = `${complianceCtx}\n\n${implementTemplate}`;
         }
 
         cli.start(resumePrompt, workspaceFolder, implementTemplate);
