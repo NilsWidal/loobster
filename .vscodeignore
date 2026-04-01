@@ -11,3 +11,5 @@ CONTRIBUTING.md
 *.vsix
 .DS_Store
 test-cli-spawn.js
+plans/
+research/

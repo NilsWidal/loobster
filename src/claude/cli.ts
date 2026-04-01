@@ -156,12 +156,6 @@ export class ClaudeCli extends EventEmitter {
     });
   }
 
-  send(input: string): void {
-    if (this.process?.stdin?.writable) {
-      this.process.stdin.write(input + '\n');
-    }
-  }
-
   stop(): void {
     if (this.heartbeat) { clearTimeout(this.heartbeat); this.heartbeat = null; }
     if (this.flushTimer) { clearInterval(this.flushTimer); this.flushTimer = null; }
@@ -169,10 +163,6 @@ export class ClaudeCli extends EventEmitter {
       this.process.kill('SIGTERM');
       this.process = null;
     }
-  }
-
-  get isRunning(): boolean {
-    return this.process !== null && !this.process.killed;
   }
 
   /** Session ID from the most recent CLI invocation (captured from init event). */

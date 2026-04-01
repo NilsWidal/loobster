@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ClaudeCli } from '../claude/cli';
-import { ClaudeEvent, Phase } from '../claude/types';
+import { ClaudeEvent } from '../claude/types';
 import { WorkflowState, GateResponse, createFreshState } from './types';
 import { playGateSound, playCompletionSound } from '../notifications/sound';
 import { detectLinearMcp } from '../linear/detector';
@@ -18,6 +18,8 @@ export class WorkflowEngine {
   private segment: 'planning' | 'implementing' = 'planning';
   /** Session ID from the planning call, used for --resume in continuation. */
   private planningSessionId: string | null = null;
+  /** Compliance context injected into system prompts based on user config. */
+  private complianceContext = '';
 
   constructor(
     private cli: ClaudeCli,
@@ -50,6 +52,16 @@ export class WorkflowEngine {
       ? 'Linear MCP tools are available. Use them for documents, issues, and comments.'
       : 'Linear is NOT available. Save all outputs as local .md files in research/ and plans/ directories.';
 
+    // Build compliance context from user settings
+    const frameworks: string[] = [];
+    if (this.config.get<boolean>('compliance.hipaa', true)) frameworks.push('HIPAA');
+    if (this.config.get<boolean>('compliance.soc2', false)) frameworks.push('SOC2');
+    if (this.config.get<boolean>('compliance.hitrust', false)) frameworks.push('HITRUST');
+    this.complianceContext = frameworks.length > 0
+      ? `Enabled compliance frameworks: ${frameworks.join(', ')}. Only run security checks for these frameworks — skip any that are not listed.`
+      : 'All compliance frameworks are disabled. Skip the Secure phase entirely.';
+    this.log.info(`Compliance config: ${this.complianceContext}`);
+
     // Build system prompt from the planning template
     const templatePath = path.join(this.extensionRoot, 'templates', 'commands', 'reppit.md');
     let reppitTemplate = '';
@@ -63,7 +75,7 @@ export class WorkflowEngine {
       return;
     }
 
-    const systemPrompt = `${linearContext}\n\n${reppitTemplate}`;
+    const systemPrompt = `${linearContext}\n\n${this.complianceContext}\n\n${reppitTemplate}`;
 
     this.workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     this.segment = 'planning';
@@ -139,7 +151,7 @@ export class WorkflowEngine {
     try {
       const template = fs.readFileSync(templatePath, 'utf-8');
       this.log.info(`Loaded implement template (${template.length} chars)`);
-      return template;
+      return `${this.complianceContext}\n\n${template}`;
     } catch (err) {
       this.log.warn(`Could not load implement template: ${err}`);
       return undefined;
@@ -281,11 +293,4 @@ export class WorkflowEngine {
     this.sidebar.updateState(this.state);
   }
 
-  get currentPhase(): Phase {
-    return this.state.phase;
-  }
-
-  get isRunning(): boolean {
-    return this.state.isRunning;
-  }
 }

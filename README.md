@@ -19,42 +19,83 @@ Research --> Propose --> Plan --> Implement --> Test --> Secure --> Done
 
 Each phase has a **gate** — the workflow pauses, plays a sound, and waits for your approval before advancing. You can refine any phase as many times as needed.
 
+## Installation
+
+### Prerequisites
+
+- **[Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code/overview)** — installed and authenticated (`claude` must be on your PATH)
+- **Node.js 18+**
+- **VS Code ^1.85** or **Cursor**
+
+### Install from Marketplace
+
+- **VS Code**: Search "RePPIT Health" in the Extensions view, or run `ext install caramedical.reppit-health`
+- **Cursor / Open VSX**: Available on the [Open VSX Registry](https://open-vsx.org/)
+
+### Install from .vsix
+
+Download the latest `.vsix` from [GitHub Releases](https://github.com/carainc/reppit-health/releases), then:
+
+```bash
+code --install-extension reppit-health-*.vsix
+# or for Cursor:
+cursor --install-extension reppit-health-*.vsix
+```
+
+### Build from source
+
+```bash
+git clone https://github.com/carainc/reppit-health.git
+cd reppit-health
+npm ci
+npm run build
+npm run package
+code --install-extension reppit-health-*.vsix
+```
+
+## Quick start
+
+1. Open a project in VS Code / Cursor
+2. Click the **RePPIT Health** icon in the activity bar (sidebar)
+3. Type a feature description (e.g., "Add patient intake form") or a Linear issue ID (e.g., `CAR-123`)
+4. Press **Start** — the workflow runs Research → Propose → Plan, then pauses for your review
+5. Approve the plan (or refine it), and the extension continues through Implement → Test → Secure
+
+The extension auto-scaffolds `.claude/commands/` templates into your workspace on first run. You can customize these per project.
+
 ## Features
 
 - **Visual sidebar** — phase stepper, gate buttons, real-time Claude output log
 - **Security gates** — HIPAA, SOC2, HITRUST checklists run against your diff before commit
 - **`/secure` command** — run security checks standalone, anytime
-- **Linear integration** (optional) — creates issues, documents, and comments in Linear. Falls back to local `.md` files if Linear is not configured
+- **Linear integration** (optional) — creates issues, documents, and comments in Linear. Falls back to local `.md` files if Linear MCP is not configured
 - **Sound notifications** — plays a sound when your input is needed
+- **CLI detection** — warns on activation if Claude Code CLI is not found, with install link
 - **Works in VS Code and Cursor**
-
-## Quick start
-
-1. Install the extension
-2. Open command palette: `RePPIT Health: Initialize Project Templates`
-3. Open the RePPIT Health sidebar
-4. Click **Start Workflow** or run `RePPIT Health: Start Workflow` from the command palette
-
-### Prerequisites
-
-- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated
-- Node.js 18+
 
 ## Configuration
 
+All settings are under `reppithealth.*` in VS Code settings.
+
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `reppits.notifications.sound` | `true` | Play sound at gates |
-| `reppits.notifications.system` | `true` | Show system notifications |
-| `reppits.security.hipaa` | `true` | Enable HIPAA security checks |
-| `reppits.security.soc2` | `false` | Enable SOC2 security checks |
-| `reppits.security.hitrust` | `false` | Enable HITRUST security checks |
-| `reppits.claudePath` | `claude` | Path to Claude CLI |
-| `reppits.autoApprove` | `false` | Skip Claude tool approval prompts |
+| `reppithealth.notifications.sound` | `true` | Play sound at gates |
+| `reppithealth.notifications.system` | `true` | Show system notifications |
+| `reppithealth.compliance.hipaa` | `true` | Enable HIPAA security checks |
+| `reppithealth.compliance.soc2` | `false` | Enable SOC2 security checks |
+| `reppithealth.compliance.hitrust` | `false` | Enable HITRUST security checks |
+| `reppithealth.claudePath` | `claude` | Path to Claude CLI binary |
+| `reppithealth.autoApprove` | `false` | Skip Claude tool approval prompts (see below) |
+| `reppithealth.claudeTrace` | `false` | Show verbose Claude CLI debug output |
+| `reppithealth.taskMode` | `stream` | Task tracking mode (`stream` or `poll`) |
+
+### About `autoApprove`
+
+When enabled, the extension passes `--dangerously-skip-permissions` to the Claude CLI, meaning Claude can read/write files and run commands without prompting for each action. This makes the workflow faster but gives Claude full access to your workspace. Only enable this if you trust the workflow running in your project.
 
 ## How it works
 
-The extension spawns the Claude CLI as a child process and communicates via structured markers. Your `.claude/commands/*.md` files define the behavior of each phase — you can customize them per project.
+The extension spawns the Claude CLI as a child process and communicates via structured markers in the stream-json output. Your `.claude/commands/*.md` files define the behavior of each phase — you can customize them per project.
 
 ### Phases
 
@@ -63,17 +104,17 @@ The extension spawns the Claude CLI as a child process and communicates via stru
 3. **Plan** — breaks the chosen proposal into issues (Linear or local `.md`)
 4. **Implement** — works through each issue, writing code
 5. **Test** — reviews and tests all changes for bugs, correctness, and style
-6. **Secure** — runs healthcare security checklists (HIPAA/SOC2/HITRUST) against the diff. If issues are found, loops back to Implement → Test → Secure until clean
+6. **Secure** — runs enabled healthcare security checklists against the diff. If issues are found, loops back to Implement → Test → Secure until clean
 
 ### Security checklists
 
-Checklists live in `templates/security/` and are fully customizable:
+Checklists live in `templates/compliance/` and are scaffolded to `.claude/compliance/` in your workspace. They are fully customizable:
 
 - **HIPAA** — PHI in logs, encryption, access control, audit trails, minimum necessary
-- **SOC2** — input validation, error handling, dependency auditing
-- **HITRUST** — session management, credential handling
+- **SOC2** — input validation, error handling, dependency auditing, secrets
+- **HITRUST** — session management, credential handling, tenant isolation
 
-Each item gets a pass/warn/fail status. Failures block the commit gate (with override + justification).
+Each item gets a pass/warn/fail status. Only the frameworks you enable in settings are checked.
 
 ### Standalone `/secure` command
 
