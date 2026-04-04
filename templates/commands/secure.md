@@ -39,12 +39,12 @@ Run healthcare security checks (HIPAA, SOC2, HITRUST) against all uncommitted ch
 - Credential handling (no plaintext passwords, proper hashing)
 - Cross-tenant data access prevention
 
-4. For each item, assign a status:
+5. For each item, assign a status:
    - PASS — requirement met
    - WARN — potential concern, needs human review
    - FAIL — clear violation found
-5. Present the report.
-6. If Linear MCP tools are available and an issue was identified, post the security report as a comment.
+6. Present the report.
+7. If Linear MCP tools are available and an issue was identified, post the security report as a comment.
 
 ## Output template
 ```
