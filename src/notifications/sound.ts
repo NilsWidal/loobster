@@ -1,4 +1,4 @@
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import * as os from 'os';
 
 export function playGateSound(): void {
@@ -13,14 +13,12 @@ function playSound(macPath: string): void {
   const platform = os.platform();
 
   if (platform === 'darwin') {
-    exec(`afplay "${macPath}" &`);
+    execFile('afplay', [macPath]);
   } else if (platform === 'win32') {
     // Windows: use PowerShell to play a system sound
-    exec(
-      `powershell -c "(New-Object Media.SoundPlayer 'C:\\Windows\\Media\\notify.wav').PlaySync()"`
-    );
+    execFile('powershell', ['-c', "(New-Object Media.SoundPlayer 'C:\\Windows\\Media\\notify.wav').PlaySync()"]);
   } else {
     // Linux: terminal bell as fallback
-    exec("printf '\\a'");
+    execFile('printf', ['\\a']);
   }
 }

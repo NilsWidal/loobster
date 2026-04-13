@@ -32,9 +32,10 @@ export class ClaudeCli extends EventEmitter {
     this.parser = new OutputParser();
 
     const args: string[] = [];
-    // The extension manages its own gates (plan review, etc.).
-    // Skip CLI permission prompts so Claude runs unblocked.
-    args.push('--dangerously-skip-permissions');
+    // Only skip CLI permission prompts when the user has opted in via settings.
+    if (this.autoApprove) {
+      args.push('--dangerously-skip-permissions');
+    }
     // --verbose is REQUIRED for stream-json with -p (Claude CLI ≥2.1.72)
     // --include-partial-messages streams text/tool events as they arrive
     args.push('--output-format', 'stream-json', '--verbose', '--include-partial-messages');

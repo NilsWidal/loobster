@@ -91,7 +91,7 @@ All settings are under `reppithealth.*` in VS Code settings.
 
 ### About `autoApprove`
 
-When enabled, the extension passes `--dangerously-skip-permissions` to the Claude CLI, meaning Claude can read/write files and run commands without prompting for each action. This makes the workflow faster but gives Claude full access to your workspace. Only enable this if you trust the workflow running in your project.
+When enabled, the extension passes `--dangerously-skip-permissions` to the Claude CLI, meaning Claude can read/write files and run commands without prompting for each action. When disabled (the default), the flag is omitted and Claude will prompt for tool approvals as normal. This makes the workflow faster but gives Claude full access to your workspace. Only enable this if you trust the workflow running in your project.
 
 ## How it works
 
@@ -110,9 +110,9 @@ The extension spawns the Claude CLI as a child process and communicates via stru
 
 Checklists live in `templates/compliance/` and are scaffolded to `.claude/compliance/` in your workspace. They are fully customizable:
 
-- **HIPAA** — PHI in logs, encryption, access control, audit trails, minimum necessary
-- **SOC2** — input validation, error handling, dependency auditing, secrets
-- **HITRUST** — session management, credential handling, tenant isolation
+- **HIPAA** — Administrative, physical, and technical safeguards (§164.308-312), PHI detection, minimum necessary, BAA verification, breach notification, telehealth compliance
+- **SOC2** — All Trust Service Criteria (CC1-CC9), Availability (A1), Confidentiality (C1), Processing Integrity (PI1), Privacy (P1), plus injection prevention and secrets management
+- **HITRUST** — All 14 CSF v11 control categories (00-13): access control, risk management, encryption, operations, incident management, business continuity, privacy practices, cross-tenant isolation
 
 Each item gets a pass/warn/fail status. Only the frameworks you enable in settings are checked.
 

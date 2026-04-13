@@ -6,6 +6,8 @@ webview/dist/
 .DS_Store
 *.log
 .claude/
-package-lock.json
 plans/
 research/
+.env
+.env*
+!.env.example
