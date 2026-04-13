@@ -1,12 +1,15 @@
 Run healthcare security checks (HIPAA, SOC2, HITRUST) against all uncommitted changes.
 
 ## What this does
+
 - Gathers all uncommitted changes (staged + unstaged)
 - Runs each enabled security framework checklist against the diff
-- Produces a pass/warn/fail report per checklist item
+- Produces a pass/warn/fail report for **code-verifiable** items
+- Surfaces **organizational `[org]` items** separately as "NOT VERIFIED — requires manual/periodic review"
 - Optionally posts findings to the relevant issue tracker
 
 ## Steps
+
 1. Collect the diff:
    - `git diff`
    - `git diff --cached`
@@ -17,9 +20,18 @@ Run healthcare security checks (HIPAA, SOC2, HITRUST) against all uncommitted ch
    - `.claude/compliance/soc2-checklist.md` (if SOC2 is enabled)
    - `.claude/compliance/hitrust-checklist.md` (if HITRUST is enabled)
    If the files don't exist, use the built-in checks below as defaults.
-4. Run each security checklist against the diff:
+4. Run each security checklist against the diff.
+5. **For items marked `[org]`**: Do NOT auto-pass these. Instead, check if the diff touches files relevant to that control (e.g., CDK/infrastructure changes for physical safeguards, CI/CD changes for change management). If the diff is relevant, evaluate what you can. If not, mark as `SKIPPED` with a note that it requires periodic organizational review.
+6. For each code-verifiable item, assign a status:
+   - **PASS** — requirement met
+   - **WARN** — potential concern, needs human review
+   - **FAIL** — clear violation found
+   - **SKIPPED** — cannot be verified from code diff (organizational/physical control)
+7. Present the report using the output template below.
+8. If Linear MCP tools are available and an issue was identified, post the security report as a comment.
 
-### HIPAA Checklist
+### Built-in HIPAA Checks (fallback)
+
 - No PHI (names, DOB, SSN, emails, phone numbers) in logs, comments, error messages, or string literals
 - Data at rest encryption (no plaintext storage of sensitive fields)
 - Data in transit (HTTPS/TLS for all external calls)
@@ -28,27 +40,25 @@ Run healthcare security checks (HIPAA, SOC2, HITRUST) against all uncommitted ch
 - Minimum necessary (only required data fields are queried/returned)
 - Soft delete only (no hard deletes of patient/health data)
 
-### SOC2 Checklist
+### Built-in SOC2 Checks (fallback)
+
 - Input validation on all API boundaries
 - Error handling does not leak internal details to clients
 - Dependencies are pinned (no floating versions)
 - No secrets or credentials in code
+- Change management (PR review, automated deployment)
 
-### HITRUST Checklist
+### Built-in HITRUST Checks (fallback)
+
 - Session management (proper token handling, expiry)
 - Credential handling (no plaintext passwords, proper hashing)
 - Cross-tenant data access prevention
-
-5. For each item, assign a status:
-   - PASS — requirement met
-   - WARN — potential concern, needs human review
-   - FAIL — clear violation found
-6. Present the report.
-7. If Linear MCP tools are available and an issue was identified, post the security report as a comment.
+- Encryption (strong algorithms, no weak crypto)
 
 ## Output template
+
 ```
-## Security Review (RePPITS)
+## Security Review
 
 Summary: <1-2 sentences>
 
@@ -58,15 +68,31 @@ Summary: <1-2 sentences>
 | PASS/WARN/FAIL | <check name> | <explanation> |
 
 ### SOC2
-...
+| Status | Check | Detail |
+|--------|-------|--------|
+| PASS/WARN/FAIL | <check name> | <explanation> |
 
 ### HITRUST
-...
+| Status | Check | Detail |
+|--------|-------|--------|
+| PASS/WARN/FAIL | <check name> | <explanation> |
+
+### Organizational Controls (not verifiable from code)
+| Framework | Control | Last Verified | Action Required |
+|-----------|---------|---------------|-----------------|
+| HIPAA §164.310 | Physical safeguards | See periodic audit | Quarterly review |
+| SOC2 CC1.2 | Board oversight | See periodic audit | Quarterly review |
+| ... | ... | ... | ... |
+
+Items skipped: <count> (see periodic audit schedule in `.claude/compliance/org-controls-audit.md`)
 
 Blocking issues: <count>
 ```
 
 ## Notes
+
 - FAIL items should block any commit/push — flag clearly.
 - WARN items need human judgment — present but don't block.
+- SKIPPED items are organizational controls — they do NOT block but must be tracked via periodic audit.
 - This command can be run standalone or as part of the full `/reppit` flow.
+- If this diff touches infrastructure (CDK, K8s, CI/CD), evaluate relevant `[org]` items against the infrastructure changes rather than skipping them.
