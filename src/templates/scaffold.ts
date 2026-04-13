@@ -17,6 +17,7 @@ const TEMPLATE_FILES = [
   'compliance/hipaa-checklist.md',
   'compliance/soc2-checklist.md',
   'compliance/hitrust-checklist.md',
+  'compliance/org-controls-audit.md',
   'design_doc_template.md',
 ];
 

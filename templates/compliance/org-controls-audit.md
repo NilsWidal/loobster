@@ -1,0 +1,100 @@
+# Organizational Controls — Periodic Audit Checklist
+
+These controls **cannot be verified from code diffs**. They require manual verification on a quarterly schedule. The `/secure` command will skip these items and reference this file.
+
+**Review cadence:** Quarterly (Jan, Apr, Jul, Oct)
+**Last reviewed:** 2026-04-12
+**Next review:** 2026-07-01
+
+---
+
+## HIPAA — Administrative & Physical Safeguards
+
+### §164.308 Administrative
+
+| Control | Requirement | How to Verify | Status | Last Verified |
+|---------|-------------|---------------|--------|---------------|
+| §164.308(a)(4) | Healthcare clearinghouse function isolation | N/A — Cara is not a clearinghouse | N/A | 2026-04-12 |
+| §164.308(a)(5) | Security awareness training for workforce | Check training records for all team members | | |
+| §164.308(b) | BAA signed with all PHI-handling vendors | Review `docs/BAA_REGISTRY.md` — verify all entries are current | | |
+
+### §164.310 Physical Safeguards
+
+| Control | Requirement | How to Verify | Status | Last Verified |
+|---------|-------------|---------------|--------|---------------|
+| §164.310(a) | Infrastructure does not expose management interfaces publicly | Run `aws ec2 describe-security-groups` — verify no 0.0.0.0/0 on management ports. Check CDK: Aurora `publiclyAccessible: false`, VPC private subnets. | | |
+| §164.310(b)-(c) | Workstation security policies | Verify team laptops have disk encryption (FileVault/BitLocker), screen lock, and remote wipe capability | | |
+
+---
+
+## SOC2 — Governance & Organizational Controls
+
+| Control | Requirement | How to Verify | Status | Last Verified |
+|---------|-------------|---------------|--------|---------------|
+| CC1.1 | Code of conduct / integrity | Verify employee handbook includes security expectations | | |
+| CC1.2 | Board/management oversight of security | Verify security review is part of leadership meetings | | |
+| CC1.3 | CI/CD and infra changes reviewed by authorized personnel | Check GitHub branch protection rules: `gh api repos/carainc/graft-md/branches/main/protection` | | |
+| CC3.1 | Risk assessment for new features | Verify threat modeling happens during planning (Linear ticket templates, ADRs) | | |
+| CC6.1 | Least-privilege IAM policies | Run `aws iam get-account-authorization-details --profile cara-prod` — audit for over-permissioned roles | | |
+| CC6.4 | Physical access to cloud infrastructure | Verify AWS SOC2 Type II report is current (inherited control) | | |
+| CC8.1 | PR review before merge | Check GitHub branch protection: `Require pull request reviews before merging` is enabled | | |
+
+---
+
+## HITRUST — Organizational & HR Controls
+
+| Control | Requirement | How to Verify | Status | Last Verified |
+|---------|-------------|---------------|--------|---------------|
+| 00.a | Security policies referenced in changes | Verify CLAUDE.md mandates `/review-code` + `/secure` (it does) | PASS | 2026-04-12 |
+| 02.a | Access control changes reviewed by security-aware personnel | Check CODEOWNERS includes security-critical paths (it does, as of 2026-04-12) | PASS | 2026-04-12 |
+| 02.e | Security awareness — code includes control purpose comments | Spot-check 5 security-critical files for inline compliance comments | | |
+| 04.a | Changes reference applicable security policy | Verify CLAUDE.md and AGENTS.md reference compliance requirements | PASS | 2026-04-12 |
+| 05.a | Security-critical changes have reviewer approval | Same as CC8.1 — check GitHub branch protection | | |
+| 05.i | Third-party integrations have documented security evaluation | Review `docs/BAA_REGISTRY.md` for completeness | | |
+| 05.i | BAAs exist for PHI-handling third parties | Cross-reference running services with BAA registry | | |
+| 06.a | HIPAA and state privacy law compliance | Legal review of terms, privacy policy, BAA template | | |
+| 07.a | New infrastructure resources tagged and inventoried | Run `aws resourcegroupstaggingapi get-resources --profile cara-prod` — verify tagging | | |
+| 07.b | Services/components have designated owners | Verify CODEOWNERS covers all directories | | |
+| 08.a | Cloud provider physical security | Verify AWS SOC2 Type II report available and current | | |
+| 10.h | Changes go through PR review | Same as CC8.1 | | |
+| 11.b | Incident response procedures not weakened | Review incident response runbook exists and is current | | |
+
+---
+
+## How to Run This Audit
+
+1. Open this file
+2. For each row without a recent "Last Verified" date, perform the verification
+3. Update the Status and Last Verified columns
+4. If any item fails, create a Linear ticket with priority based on severity
+5. Commit the updated file
+
+### Quick Verification Commands
+
+```bash
+# Check GitHub branch protection
+gh api repos/carainc/graft-md/branches/main/protection 2>&1 | jq '.required_pull_request_reviews'
+
+# Check AWS security groups for public access
+aws ec2 describe-security-groups --profile cara-prod --query 'SecurityGroups[?IpPermissions[?IpRanges[?CidrIp==`0.0.0.0/0`]]].[GroupId,GroupName]' --output table
+
+# Check IAM policies for wildcards
+aws iam get-account-authorization-details --profile cara-prod --filter LocalManagedPolicy --query 'Policies[].PolicyVersionList[].Document.Statement[?Resource==`*`]' --output json | head -50
+
+# Verify Aurora is not publicly accessible
+aws rds describe-db-instances --profile cara-prod --query 'DBInstances[].[DBInstanceIdentifier,PubliclyAccessible]' --output table
+
+# Check BAA registry is up to date
+cat docs/BAA_REGISTRY.md
+```
+
+---
+
+## Quarterly Audit Record
+
+| Quarter | Reviewer | Items Verified | Issues Found | Tickets Created |
+|---------|----------|---------------|-------------|-----------------|
+| Q2 2026 | | | | |
+| Q3 2026 | | | | |
+| Q4 2026 | | | | |
+| Q1 2027 | | | | |
