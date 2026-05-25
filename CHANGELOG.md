@@ -1,6 +1,14 @@
 # Changelog
 
-## 0.1.0 — Initial Release
+## 0.2.0 — Plugin pivot
+
+- Repackaged as a Claude Code plugin (was a VS Code / Cursor extension)
+- Installable via `/plugin marketplace add carainc/reppit-health`
+- Seven slash commands: `/reppit`, `/research-codebase`, `/make-proposals`, `/make-plan`, `/implement`, `/review-code`, `/secure`
+- Cross-references inside commands use `${CLAUDE_PLUGIN_ROOT}` for plugin-local paths, with `.claude/compliance/*.md` workspace overrides supported by `/secure`
+- Extension scaffold (`src/`, `dist/`, `package.json`, VSIX, sidebar webview) removed; full history preserved at the `pre-plugin-pivot` git tag
+
+## 0.1.0 — Initial Release (VS Code / Cursor extension, archived)
 
 - Full RePPITS workflow: Research, Propose, Plan, Implement, Test, Secure
 - Visual sidebar with phase stepper, gate prompts, and real-time log

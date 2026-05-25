@@ -1,0 +1,40 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "carainc-reppit-health",
+  "owner": {
+    "name": "Cara Technologies, Inc.",
+    "url": "https://caramedical.com"
+  },
+  "metadata": {
+    "description": "AI-powered secure development workflow for healthcare software. RePPITS methodology with HIPAA, SOC2, and HITRUST gates."
+  },
+  "plugins": [
+    {
+      "name": "reppit-health",
+      "source": "./",
+      "description": "Run /reppit for the full Research → Propose → Plan → Implement → Test → Secure workflow with healthcare compliance gates, or invoke any phase as a standalone slash command. /secure runs HIPAA, SOC2, and HITRUST checklists against your diff and separates code-verifiable findings from organizational controls.",
+      "author": {
+        "name": "Cara Technologies, Inc.",
+        "url": "https://caramedical.com"
+      },
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/carainc/reppit-health",
+      "category": "healthcare",
+      "keywords": [
+        "reppit",
+        "reppits",
+        "healthcare",
+        "healthtech",
+        "hipaa",
+        "soc2",
+        "hitrust",
+        "compliance",
+        "security",
+        "phi",
+        "audit",
+        "workflow",
+        "linear"
+      ]
+    }
+  ]
+}

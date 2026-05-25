@@ -3,7 +3,7 @@ Break the chosen proposal into a concrete implementation plan.
 ## Behavior
 - Do NOT write any code. Only create the plan.
 - Clarify the code change scope, constraints, and ordering before creating anything.
-- Use `.claude/design_doc_template.md` as a reference for what sections to cover (if it exists).
+- Use `${CLAUDE_PLUGIN_ROOT}/templates/design-doc-template.md` as a reference for what sections to cover.
 
 ## Steps
 1. Read the relevant research and proposal documents.

@@ -16,10 +16,10 @@ Run healthcare security checks (HIPAA, SOC2, HITRUST) against all uncommitted ch
    - `git diff HEAD`
 2. If an issue ID is provided or can be inferred from the branch name, read it for context.
 3. Read the compliance checklist files for each enabled framework:
-   - `.claude/compliance/hipaa-checklist.md` (if HIPAA is enabled)
-   - `.claude/compliance/soc2-checklist.md` (if SOC2 is enabled)
-   - `.claude/compliance/hitrust-checklist.md` (if HITRUST is enabled)
-   If the files don't exist, use the built-in checks below as defaults.
+   - `${CLAUDE_PLUGIN_ROOT}/compliance/hipaa-checklist.md` (if HIPAA is enabled)
+   - `${CLAUDE_PLUGIN_ROOT}/compliance/soc2-checklist.md` (if SOC2 is enabled)
+   - `${CLAUDE_PLUGIN_ROOT}/compliance/hitrust-checklist.md` (if HITRUST is enabled)
+   If a workspace override exists at `.claude/compliance/<framework>-checklist.md` in the user's repo, prefer that. If neither exists, fall back to the built-in checks below.
 4. Run each security checklist against the diff.
 5. **For items marked `[org]`**: Do NOT auto-pass these. Instead, check if the diff touches files relevant to that control (e.g., CDK/infrastructure changes for physical safeguards, CI/CD changes for change management). If the diff is relevant, evaluate what you can. If not, mark as `SKIPPED` with a note that it requires periodic organizational review.
 6. For each code-verifiable item, assign a status:
@@ -84,7 +84,7 @@ Summary: <1-2 sentences>
 | SOC2 CC1.2 | Board oversight | See periodic audit | Quarterly review |
 | ... | ... | ... | ... |
 
-Items skipped: <count> (see periodic audit schedule in `.claude/compliance/org-controls-audit.md`)
+Items skipped: <count> (see periodic audit schedule in `${CLAUDE_PLUGIN_ROOT}/compliance/org-controls-audit.md`)
 
 Blocking issues: <count>
 ```

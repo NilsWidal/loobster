@@ -1,55 +1,54 @@
 # Contributing to RePPIT Health
 
-Thanks for your interest in contributing!
+Thanks for your interest in contributing.
 
-## Getting started
-
-1. Fork and clone the repo
-2. `npm install`
-3. `npm run watch` to start the extension compiler in watch mode
-4. Press F5 in VS Code to launch the Extension Development Host
-
-## Project structure
+## Repository layout
 
 ```
-src/
-  extension.ts          — entry point, registers commands and sidebar
-  claude/               — CLI wrapper and output parser
-  engine/               — workflow state machine
-  sidebar/              — webview provider
-  notifications/        — sound and system notifications
-  linear/               — Linear MCP detection
-  templates/            — scaffold logic
+.claude-plugin/
+  plugin.json           — plugin manifest (name, version, metadata)
+  marketplace.json      — marketplace entry consumed by `/plugin marketplace add`
+commands/
+  reppit.md             — orchestrator slash command for the full workflow
+  research-codebase.md  — /research-codebase
+  make-proposals.md     — /make-proposals
+  make-plan.md          — /make-plan
+  implement.md          — /implement
+  review-code.md        — /review-code
+  secure.md             — /secure
 templates/
-  commands/             — default .claude/commands/*.md templates
-  compliance/           — HIPAA/SOC2/HITRUST checklists
-  design_doc_template.md
+  design-doc-template.md — referenced by /make-plan (not a slash command)
+compliance/
+  hipaa-checklist.md
+  soc2-checklist.md
+  hitrust-checklist.md
+  org-controls-audit.md
 ```
 
-## Development workflow
+The slash commands cross-reference each other using `${CLAUDE_PLUGIN_ROOT}`, which Claude Code resolves to the plugin's install directory at runtime.
 
-- `npm run build` — build the extension
-- `npm run watch` — rebuild on file changes
-- `npm test` — run tests
-- `npm run package` — produce a `.vsix` file
+## Develop locally
+
+1. Fork and clone the repo.
+2. In a test workspace, add the local clone as a marketplace and install:
+   ```
+   /plugin marketplace add /absolute/path/to/your/reppit-health
+   /plugin install reppit-health@carainc-reppit-health
+   ```
+3. Edit any `commands/*.md` or `compliance/*.md` file. Re-run `/plugin marketplace update` then `/plugin install` to pick up changes.
+4. Test the slash commands against a real workspace.
 
 ## Submitting changes
 
-1. Create a branch from `main`
-2. Make your changes with clear commit messages
-3. Open a pull request with a description of what changed and why
-4. Ensure the build passes
+1. Branch from `main`.
+2. Make focused changes, one concern per PR.
+3. Bump the version in `.claude-plugin/plugin.json` and add a `CHANGELOG.md` entry.
+4. Open a PR describing what changed and why.
 
-## Code style
+## Customizing checklists
 
-- TypeScript, strict mode
-- Follow existing patterns in the codebase
-- Keep changes focused — one concern per PR
-
-## Customizing templates
-
-The compliance checklists and command templates in `templates/` are designed to be generic. If you have domain-specific checks to add (e.g., FDA, GDPR), consider contributing them as optional checklist files.
+The compliance checklists are intentionally generic and tuned for SaaS healthcare. If you have domain-specific checks (FDA, GDPR, state-level regs), consider contributing them as additional optional checklist files rather than editing the existing ones.
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the Apache 2.0 license.
+By contributing, you agree your contributions will be licensed under Apache 2.0.

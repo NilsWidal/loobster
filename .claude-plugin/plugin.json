@@ -1,0 +1,29 @@
+{
+  "name": "reppit-health",
+  "version": "0.2.0",
+  "description": "AI-powered secure development workflow for healthcare software. Implements RePPITS (Research, Propose, Plan, Implement, Test, Secure) with HIPAA, SOC2, and HITRUST compliance gates that run against your diff before commit. Slash commands: /reppit, /research-codebase, /make-proposals, /make-plan, /implement, /review-code, /secure.",
+  "author": {
+    "name": "Cara Technologies, Inc.",
+    "url": "https://caramedical.com"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/carainc/reppit-health",
+  "repository": "https://github.com/carainc/reppit-health",
+  "category": "healthcare",
+  "keywords": [
+    "reppit",
+    "reppits",
+    "healthcare",
+    "healthtech",
+    "hipaa",
+    "soc2",
+    "hitrust",
+    "compliance",
+    "security",
+    "phi",
+    "audit",
+    "workflow",
+    "linear",
+    "claude-code-plugin"
+  ]
+}

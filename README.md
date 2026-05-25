@@ -1,12 +1,22 @@
 # RePPIT Health
 
-AI-powered secure development workflow for healthcare software.
+A Claude Code plugin that runs a secure development workflow for healthcare software.
 
-**RePPIT Health** implements the **RePPITS** methodology — **R**esearch, **P**ropose, **P**lan, **I**mplement, **T**est, **S**ecure — extending the [RePPIT framework](https://themodernsoftware.dev) by [Mihail Eric](https://github.com/mihail911) (Head of AI, creator of Stanford's first AI software engineering course) with HIPAA, SOC2, and HITRUST security gates for healthcare and healthtech teams.
+**RePPIT Health** implements the **RePPITS** methodology, **R**esearch, **P**ropose, **P**lan, **I**mplement, **T**est, **S**ecure, extending the [RePPIT framework](https://themodernsoftware.dev) by [Mihail Eric](https://github.com/mihail911) (Head of AI, creator of Stanford's first AI software engineering course) with HIPAA, SOC2, and HITRUST compliance gates for healthcare and healthtech teams.
 
-## What it does
+## What you get
 
-A VS Code / Cursor sidebar extension that guides you through a complete development workflow powered by Claude Code:
+Seven slash commands, available in Claude Code, Cursor, and any client that supports the Claude Code plugin spec:
+
+| Command | What it does |
+|---|---|
+| `/reppit <topic-or-issue>` | Run the full Research → Propose → Plan → Implement → Test → Secure workflow, with explicit approval gates between phases |
+| `/research-codebase` | Document the existing codebase exactly as it is today (no suggestions, no RCA) |
+| `/make-proposals` | Generate up to two solution proposals grounded in research |
+| `/make-plan` | Break the chosen proposal into ordered Linear issues (or local `plans/*.md` if Linear MCP is not configured) |
+| `/implement <issue>` | Implement a single Linear issue, with optional Ralph Loop mode |
+| `/review-code` | Review all uncommitted changes, post findings to Linear |
+| `/secure` | Run HIPAA, SOC2, and HITRUST checklists against your diff, separating code-verifiable findings from organizational controls |
 
 ```
 Research --> Propose --> Plan --> Implement --> Test --> Secure --> Done
@@ -17,114 +27,81 @@ Research --> Propose --> Plan --> Implement --> Test --> Secure --> Done
                                           └── fix & test ───┘
 ```
 
-Each phase has a **gate** — the workflow pauses, plays a sound, and waits for your approval before advancing. You can refine any phase as many times as needed.
+## Install
 
-## Installation
+### From the plugin marketplace (recommended)
 
-### Prerequisites
+In Claude Code (≥ 1.0.33):
 
-- **[Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code/overview)** — installed and authenticated (`claude` must be on your PATH)
-- **Node.js 18+**
-- **VS Code ^1.85** or **Cursor**
-
-### Install from Marketplace
-
-- **VS Code**: Search "RePPIT Health" in the Extensions view, or run `ext install caramedical.reppit-health`
-- **Cursor / Open VSX**: Available on the [Open VSX Registry](https://open-vsx.org/)
-
-### Install from .vsix
-
-Download the latest `.vsix` from [GitHub Releases](https://github.com/carainc/reppit-health/releases), then:
-
-```bash
-code --install-extension reppit-health-*.vsix
-# or for Cursor:
-cursor --install-extension reppit-health-*.vsix
+```
+/plugin marketplace add carainc/reppit-health
+/plugin install reppit-health@carainc-reppit-health
 ```
 
-### Build from source
+That's it. The slash commands are immediately available.
+
+### From a local clone
 
 ```bash
 git clone https://github.com/carainc/reppit-health.git
-cd reppit-health
-npm ci
-npm run build
-npm run package
-code --install-extension reppit-health-*.vsix
 ```
+
+Then in Claude Code:
+
+```
+/plugin marketplace add ./reppit-health
+/plugin install reppit-health@carainc-reppit-health
+```
+
+Useful for trying changes before pushing.
 
 ## Quick start
 
-1. Open a project in VS Code / Cursor
-2. Click the **RePPIT Health** icon in the activity bar (sidebar)
-3. Type a feature description (e.g., "Add patient intake form") or a Linear issue ID (e.g., `CAR-123`)
-4. Press **Start** — the workflow runs Research → Propose → Plan, then pauses for your review
-5. Approve the plan (or refine it), and the extension continues through Implement → Test → Secure
+In any project directory:
 
-The extension auto-scaffolds `.claude/commands/` templates into your workspace on first run. You can customize these per project.
+```
+/reppit Add a patient intake form
+```
 
-## Features
+or with a Linear issue:
 
-- **Visual sidebar** — phase stepper, gate buttons, real-time Claude output log
-- **Security gates** — HIPAA, SOC2, HITRUST checklists run against your diff before commit
-- **`/secure` command** — run security checks standalone, anytime
-- **Linear integration** (optional) — creates issues, documents, and comments in Linear. Falls back to local `.md` files if Linear MCP is not configured
-- **Sound notifications** — plays a sound when your input is needed
-- **CLI detection** — warns on activation if Claude Code CLI is not found, with install link
-- **Works in VS Code and Cursor**
+```
+/reppit CAR-123
+```
 
-## Configuration
+The plugin walks Research → Propose → Plan → Implement → Test → Secure and pauses at each gate for your approval. You can also invoke any phase directly, e.g. `/secure` to audit current uncommitted changes without running the full flow.
 
-All settings are under `reppithealth.*` in VS Code settings.
+## Compliance checklists
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `reppithealth.notifications.sound` | `true` | Play sound at gates |
-| `reppithealth.notifications.system` | `true` | Show system notifications |
-| `reppithealth.compliance.hipaa` | `true` | Enable HIPAA security checks |
-| `reppithealth.compliance.soc2` | `false` | Enable SOC2 security checks |
-| `reppithealth.compliance.hitrust` | `false` | Enable HITRUST security checks |
-| `reppithealth.claudePath` | `claude` | Path to Claude CLI binary |
-| `reppithealth.autoApprove` | `false` | Skip Claude tool approval prompts (see below) |
-| `reppithealth.claudeTrace` | `false` | Show verbose Claude CLI debug output |
-| `reppithealth.taskMode` | `stream` | Task tracking mode (`stream` or `poll`) |
+Checklists live in `compliance/` inside the installed plugin:
 
-### About `autoApprove`
+- **`hipaa-checklist.md`** — Administrative, physical, and technical safeguards (§164.308-312), PHI detection, minimum necessary, BAA verification, breach notification, telehealth compliance
+- **`soc2-checklist.md`** — All Trust Service Criteria (CC1-CC9), Availability (A1), Confidentiality (C1), Processing Integrity (PI1), Privacy (P1), plus injection prevention and secrets management
+- **`hitrust-checklist.md`** — All 14 CSF v11 control categories (00-13): access control, risk management, encryption, operations, incident management, business continuity, privacy practices, cross-tenant isolation
+- **`org-controls-audit.md`** — Schedule and tracking for organizational controls that can't be verified from code alone
 
-When enabled, the extension passes `--dangerously-skip-permissions` to the Claude CLI, meaning Claude can read/write files and run commands without prompting for each action. When disabled (the default), the flag is omitted and Claude will prompt for tool approvals as normal. This makes the workflow faster but gives Claude full access to your workspace. Only enable this if you trust the workflow running in your project.
+Each item gets a PASS / WARN / FAIL / SKIPPED status. Items marked `[org]` (physical safeguards, board oversight, BAAs with subprocessors) are surfaced separately so they don't get auto-passed by a green diff.
 
-## How it works
+### Per-workspace overrides
 
-The extension spawns the Claude CLI as a child process and communicates via structured markers in the stream-json output. Your `.claude/commands/*.md` files define the behavior of each phase — you can customize them per project.
+If you want to customize a checklist for a specific repo, drop a file at `.claude/compliance/<framework>-checklist.md` in that workspace. `/secure` reads workspace overrides first, then falls back to the plugin's defaults.
 
-### Phases
+## Linear integration (optional)
 
-1. **Research** — Claude explores your codebase and documents findings
-2. **Propose** — generates 2 solution proposals with trade-offs
-3. **Plan** — breaks the chosen proposal into issues (Linear or local `.md`)
-4. **Implement** — works through each issue, writing code
-5. **Test** — reviews and tests all changes for bugs, correctness, and style
-6. **Secure** — runs enabled healthcare security checklists against the diff. If issues are found, loops back to Implement → Test → Secure until clean
+If the [Linear MCP](https://linear.app/docs/mcp) is configured in Claude Code, the plugin will:
 
-### Security checklists
+- Read issues mentioned in `/implement <issue-id>`
+- Save research and proposal documents as Linear documents
+- Create parent + sub-issue structures during `/make-plan`
+- Post review and security findings as comments on the relevant issue
 
-Checklists live in `templates/compliance/` and are scaffolded to `.claude/compliance/` in your workspace. They are fully customizable:
-
-- **HIPAA** — Administrative, physical, and technical safeguards (§164.308-312), PHI detection, minimum necessary, BAA verification, breach notification, telehealth compliance
-- **SOC2** — All Trust Service Criteria (CC1-CC9), Availability (A1), Confidentiality (C1), Processing Integrity (PI1), Privacy (P1), plus injection prevention and secrets management
-- **HITRUST** — All 14 CSF v11 control categories (00-13): access control, risk management, encryption, operations, incident management, business continuity, privacy practices, cross-tenant isolation
-
-Each item gets a pass/warn/fail status. Only the frameworks you enable in settings are checked.
-
-### Standalone `/secure` command
-
-You can also run the Secure phase independently via the `/secure` Claude Code command — useful for checking existing code without running the full workflow.
+If Linear is not configured, the plugin falls back to local `.md` files in `research/`, `plans/`, and the conversation transcript. Both modes work end-to-end.
 
 ## Credits
 
 - **RePPIT methodology** — [Mihail Eric](https://github.com/mihail911), Head of AI, creator of [Stanford's first AI software engineering course](https://themodernsoftware.dev)
-- **RePPIT Health extension** — [Cara](https://caramedical.com)
+- **RePPIT Health plugin** — [Cara](https://caramedical.com)
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE)
+Apache 2.0, see [LICENSE](LICENSE).
