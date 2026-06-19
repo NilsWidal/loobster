@@ -21,6 +21,7 @@ Run healthcare security checks (HIPAA, SOC2, HITRUST) against all uncommitted ch
    - `${CLAUDE_PLUGIN_ROOT}/compliance/hitrust-checklist.md` (if HITRUST is enabled)
    If a workspace override exists at `.claude/compliance/<framework>-checklist.md` in the user's repo, prefer that. If neither exists, fall back to the built-in checks below.
 4. Run each security checklist against the diff.
+   - **Token discipline (see `${CLAUDE_PLUGIN_ROOT}/commands/token-discipline.md`):** when the diff is large or several frameworks are enabled, delegate each framework's checklist evaluation to its own `Agent` subagent and collect only the per-item PASS/WARN/FAIL verdicts. The main thread assembles the report from those verdicts. Never let a subagent's raw file reads back into the main context — only the verdicts.
 5. **For items marked `[org]`**: Do NOT auto-pass these. Instead, check if the diff touches files relevant to that control (e.g., CDK/infrastructure changes for physical safeguards, CI/CD changes for change management). If the diff is relevant, evaluate what you can. If not, mark as `SKIPPED` with a note that it requires periodic organizational review.
 6. For each code-verifiable item, assign a status:
    - **PASS** — requirement met
@@ -29,6 +30,7 @@ Run healthcare security checks (HIPAA, SOC2, HITRUST) against all uncommitted ch
    - **SKIPPED** — cannot be verified from code diff (organizational/physical control)
 7. Present the report using the output template below.
 8. If Linear MCP tools are available and an issue was identified, post the security report as a comment.
+9. If Claude Code Tasks track this work (`TaskList`), record the result: any task with an unresolved **FAIL** stays `in_progress` (a FAIL blocks completion); mark tasks `completed` only when no FAIL remains. This keeps `/resume-reppit` and the Phase 6 convergence loop accurate across sessions.
 
 ### Built-in HIPAA Checks (fallback)
 

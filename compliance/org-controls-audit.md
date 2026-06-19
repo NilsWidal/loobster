@@ -61,6 +61,17 @@ These controls **cannot be verified from code diffs**. They require manual verif
 
 ---
 
+## Optional token-compression hook (Option D) — data-path control
+
+reppit-health ships an **opt-in, default-OFF** token-compression hook (`hooks/hooks.json` → `bin/headroom-compress.py`) that routes large tool outputs through a locally-installed [headroom](https://github.com/chopratejas/headroom) before they reach the model. **Enabling it (`REPPIT_HEADROOM=1`) places a third-party compressor in the PHI data path** and must be treated as an organizational control.
+
+| Control | Requirement | How to Verify | Status | Last Verified |
+|---------|-------------|---------------|--------|---------------|
+| 05.i / §164.308(b) | If the compression hook is enabled, headroom is covered by a security review and (if it processes PHI) a BAA or local-only attestation | Confirm `REPPIT_HEADROOM` is unset in PHI-handling environments unless headroom has been reviewed; headroom runs locally (no network) — verify the version in use and that its CCR original-store is encrypted/GC'd per policy | OFF by default | |
+| 04.a | Enabling the hook is a reviewed, documented decision | Verify any environment setting `REPPIT_HEADROOM=1` has sign-off and the PHI-at-rest implications of headroom's CCR store are addressed | | |
+
+---
+
 ## How to Run This Audit
 
 1. Open this file

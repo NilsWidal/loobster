@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0 — Autonomous loops & dynamic workflows
+
+- **Adaptive gating (Phase 0):** `/reppit` now right-sizes each task (trivial / standard / sensitive) and applies a gate policy per tier. New `--auto` (let trivial tasks auto-advance early phases) and `--manual` (force all gates) flags. Sensitive tasks never auto-advance; the Secure phase always runs for every tier.
+- **Bounded autonomous convergence loop:** the Implement→Test→Secure fix loop self-drives up to 3 iterations, then escalates to a human — never silently commits past unresolved FAILs.
+- **Resumable workflows:** real Claude Code Tasks status lifecycle across Implement/Test/Secure, plus a new `/resume-reppit` command that rebuilds state from `TaskList` after a crash or new session.
+- **Tier-1 parallelism:** independent sub-issues (disjoint files, no blocking edge) are implemented concurrently in isolated worktrees via subagents; degrades to serial when subagents aren't available.
+- **Ralph fallback:** the optional `with ralph` path now detects whether `/ralph-loop:ralph-loop` is installed and falls back to the built-in bounded loop instead of erroring.
+- **Native token discipline (Option A):** new `commands/token-discipline.md` — subagent isolation, artifact compaction, cache-stable prefixes, terse output. Always on, zero-dependency, portable.
+- **Optional headroom compression (Option D):** opt-in, default-OFF `PostToolUse` hook (`hooks/hooks.json` + `bin/headroom-compress.py`) that compresses large tool outputs via a locally-installed [headroom](https://github.com/chopratejas/headroom) when `REPPIT_HEADROOM=1`. Graceful passthrough otherwise. Tests in `tests/test-headroom-hook.sh`. Healthcare PHI-data-path caveat documented in the README and `compliance/org-controls-audit.md`.
+- Tier-2 deterministic Workflow harness (subagents + Workflow-tool orchestration) is designed and tracked as a follow-up epic in `plans/autonomous-loops/`.
+
 ## 0.2.0 — Plugin pivot
 
 - Repackaged as a Claude Code plugin (was a VS Code / Cursor extension)
