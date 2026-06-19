@@ -9,6 +9,7 @@ Research and document the existing codebase exactly as it is today; no suggestio
 1. Read directly mentioned files fully.
 2. Decompose the query into focused research areas and create an internal checklist.
 3. Explore relevant directories and files in parallel when areas are independent. If necessary, inspect git history for additional context.
+   - **Token discipline (see `${CLAUDE_PLUGIN_ROOT}/commands/token-discipline.md`):** for broad or deep exploration, delegate the heavy reading to `Explore`/`Agent` subagents — one per independent area — and bring back only their findings. The main thread should accumulate conclusions and code references, not raw file contents, so later phases inherit a lean context window.
 4. Synthesize after all exploration completes; prioritize live code findings over historical docs.
 5. Produce a structured research document.
    - If Linear MCP tools are available, save it as a Linear document.

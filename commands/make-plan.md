@@ -11,6 +11,7 @@ Break the chosen proposal into a concrete implementation plan.
    - Create a **parent issue** that serves as the epic/tracker for the full plan. Include context, requirements, design decisions, and any security/testing notes in the description.
    - Break into ordered **sub-issues** under the parent, each small enough for a single commit. Include affected files, acceptance criteria, and blockers.
    - Set blocking relationships where steps depend on each other.
+   - **Mark independence explicitly.** For each sub-issue, state whether it is *independent* (no blocking edge, touches a disjoint set of files) or *dependent*. This is what lets the Implement phase run independent slices in parallel (see `reppit.md` Phase 4). Two sub-issues that edit the same file are **not** independent — give them a blocking edge to force serialization.
 3. If Linear is not available:
    - Create a `plans/` directory with a parent plan `.md` file and individual task `.md` files.
 4. Regardless of whether Linear is available, also create Claude Code Tasks using `TaskCreate` for each sub-task. This provides persistent task tracking that survives across sessions.
