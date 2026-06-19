@@ -5,7 +5,7 @@ If a Linear issue is provided, read it first to extract the task description.
 
 ## Arguments
 - **topic**: The feature description or Linear issue ID — required
-- **ralph**: If the user says "with ralph", activate Ralph Loop during the Implement phase
+- **--autonomous**: Implement sub-issues using the built-in bounded autonomous loop (Phase 4) instead of stopping at each implementation gate — iterate implement→test on a sub-issue until its acceptance criteria and tests pass. Bounded (cap 3) and escalates to a human; the Secure phase still runs. Off by default.
 - **--auto**: Allow trivial-tier tasks to auto-advance the early phases (see Phase 0). Off by default — without this flag every phase still stops at its gate.
 - **--manual**: Force every gate for every tier, overriding all auto-advance. Use for maximum oversight regardless of risk classification.
 
@@ -76,7 +76,7 @@ Order the sub-issues by their dependency edges (from Phase 3). Then, **when suba
 For each sub-issue:
 
 1. Follow `${CLAUDE_PLUGIN_ROOT}/commands/implement.md` for the sub-issue.
-   - If Ralph Loop was requested ("with ralph"): check whether the `/ralph-loop:ralph-loop` command exists. If it does, invoke it for implementation. If it does **not** (the external plugin isn't installed), say so and fall back to the built-in bounded convergence loop described in Phase 6 — do not error on the missing command.
+   - With `--autonomous`: run implementation as the **built-in bounded autonomous loop** — iterate implement→test on the sub-issue until its acceptance criteria and tests pass, **or** the iteration cap (3) is reached, then **escalate** (stop and summarize what's blocking). This is the same bounded-loop mechanism the Secure phase uses (Phase 6); no external plugin is required. Gate 4 still applies once the loop finishes, unless the tier policy auto-advances it.
 
 **Gate 4 — Implementation Review (per sub-issue):**
 - Ask: "Sub-issue implemented. Commit and move to next?"

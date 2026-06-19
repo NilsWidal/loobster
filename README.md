@@ -14,7 +14,7 @@ Eight slash commands, available in Claude Code, Cursor, and any client that supp
 | `/research-codebase` | Document the existing codebase exactly as it is today (no suggestions, no RCA) |
 | `/make-proposals` | Generate up to two solution proposals grounded in research |
 | `/make-plan` | Break the chosen proposal into ordered Linear issues (or local `plans/*.md` if Linear MCP is not configured) |
-| `/implement <issue>` | Implement a single Linear issue, with optional Ralph Loop mode |
+| `/implement <issue>` | Implement a single Linear issue (optionally inside the built-in bounded autonomous loop via `--autonomous`) |
 | `/review-code` | Review all uncommitted changes, post findings to Linear |
 | `/secure` | Run HIPAA, SOC2, and HITRUST checklists against your diff, separating code-verifiable findings from organizational controls |
 | `/resume-reppit` | Resume a paused, interrupted, or crashed workflow by reconstructing state from Claude Code Tasks |
