@@ -19,13 +19,31 @@ Eight slash commands, available in Claude Code, Cursor, and any client that supp
 | `/secure` | Run HIPAA, SOC2, and HITRUST checklists against your diff, separating code-verifiable findings from organizational controls |
 | `/resume-reppit` | Resume a paused, interrupted, or crashed workflow by reconstructing state from Claude Code Tasks |
 
-```
-Research --> Propose --> Plan --> Implement --> Test --> Secure --> Done
-   ^            ^          ^         ^           ^         |
-   | refine     | refine   | refine  | fix loop  | fix     |
-   └────┘       └────┘     └────┘    └────┘      └──┘      |
-                                          ^                 |
-                                          └── fix & test ───┘
+```mermaid
+flowchart LR
+    Start([Topic or Issue]) --> RS{{"Right-size<br/>trivial · standard · sensitive"}}
+    RS --> R
+
+    subgraph G["Gated · refine until approved"]
+        direction LR
+        R[Research] --> P[Propose] --> PL[Plan]
+    end
+
+    subgraph A["Autonomous fix loop · ≤3 then escalate"]
+        direction LR
+        I[Implement] --> T[Test] --> S[Secure]
+        S -.->|FAIL| I
+    end
+
+    PL --> I
+    S --> Done([Done · commit · PR])
+
+    classDef phase fill:#1f6feb,stroke:#0d419d,color:#fff;
+    classDef gate  fill:#8957e5,stroke:#6e40c9,color:#fff;
+    classDef term  fill:#238636,stroke:#1a7f37,color:#fff;
+    class R,P,PL,I,T,S phase
+    class RS gate
+    class Start,Done term
 ```
 
 ## Adaptive, autonomous, dynamic

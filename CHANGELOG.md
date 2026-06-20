@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1 — Autonomous kickoff & docs
+
+- **Explicit autonomous kickoff at Gate 3:** after the plan is approved you now choose **(a) run autonomously**, **(b) step through each sub-issue**, or **(c) make changes**. "Run autonomously" is what hands control to the workflow to drive Implement → Test → Secure on its own — resolving the previously underspecified hand-off after planning.
+- **Defined autonomous mode precisely** and fixed a contradiction: in autonomous mode the per-sub-issue Gate 4 is skipped (workflow commits and continues), the bounded loop (cap 3) still escalates on failure, and Gate 5/6 still stop — sensitive tier never skips Test/Secure.
+- **New "Running unattended" section** in `/reppit`: clarifies that the plugin defines behavior but the *turns* come from a driver — interactive Claude Code (hands-off in-session), or `/loop`/scheduled agent/Agent SDK for truly unattended runs.
+- **README workflow diagram** is now a rendered Mermaid flowchart (replacing the ASCII art), showing the gated and autonomous-fix-loop bands.
+
 ## 0.3.0 — Autonomous loops & dynamic workflows
 
 - **Adaptive gating (Phase 0):** `/reppit` now right-sizes each task (trivial / standard / sensitive) and applies a gate policy per tier. New `--auto` (let trivial tasks auto-advance early phases) and `--manual` (force all gates) flags. Sensitive tasks never auto-advance; the Secure phase always runs for every tier.

@@ -5,7 +5,7 @@ If a Linear issue is provided, read it first to extract the task description.
 
 ## Arguments
 - **topic**: The feature description or Linear issue ID — required
-- **--autonomous**: Implement sub-issues using the built-in bounded autonomous loop (Phase 4) instead of stopping at each implementation gate — iterate implement→test on a sub-issue until its acceptance criteria and tests pass. Bounded (cap 3) and escalates to a human; the Secure phase still runs. Off by default.
+- **--autonomous**: Pre-select autonomous execution — equivalent to choosing "Run autonomously" at Gate 3 (see Phase 4). After the plan is approved, implement all sub-issues without stopping at each per-sub-issue gate, then stop at the Secure gate. Bounded (cap 3 per sub-issue) and escalates to a human on failure. Off by default; never skips the sensitive tier's mandatory Test/Secure gates.
 - **--auto**: Allow trivial-tier tasks to auto-advance the early phases (see Phase 0). Off by default — without this flag every phase still stops at its gate.
 - **--manual**: Force every gate for every tier, overriding all auto-advance. Use for maximum oversight regardless of risk classification.
 
@@ -60,10 +60,12 @@ Follow the instructions in `${CLAUDE_PLUGIN_ROOT}/commands/make-plan.md`, using 
 
 Present the created plan structure (parent + sub-issues) to the user — as Linear issues if Linear MCP is available, otherwise as local `plans/*.md` files.
 
-**Gate 3 — Plan Review:**
-- Ask: "Plan created. OK to start implementing, or do you want changes?"
-- If the user gives feedback → update the plan (Linear issues if available, else the local `plans/` files and Claude Code Tasks) and present again. Loop until OK.
-- If OK → proceed to Phase 4.
+**Gate 3 — Plan Review (this is the kickoff point):**
+- Ask: "Plan ready. **(a) Run autonomously**, **(b) step through each sub-issue**, or **(c) make changes**?"
+  - **(c) Changes** → update the plan (Linear issues if available, else the local `plans/` files and Claude Code Tasks) and present again. Loop until the user picks (a) or (b).
+  - **(b) Step through** (default) → proceed to Phase 4 in **review mode**: stop at Gate 4 after each sub-issue.
+  - **(a) Run autonomously** → proceed to Phase 4 in **autonomous mode** (defined in Phase 4). `--autonomous` at invocation pre-selects this. Note: for the **sensitive** tier, autonomous mode still cannot skip the mandatory Test (Gate 5) and Secure (Gate 6) gates.
+- Autonomous mode is what "kicks off" execution after planning: once chosen, the workflow drives Implement → Test → Secure itself, pausing only to escalate or at a mandatory gate.
 
 ## Phase 4 — Implement (per sub-issue)
 
@@ -75,13 +77,16 @@ Order the sub-issues by their dependency edges (from Phase 3). Then, **when suba
 
 For each sub-issue:
 
-1. Follow `${CLAUDE_PLUGIN_ROOT}/commands/implement.md` for the sub-issue.
-   - With `--autonomous`: run implementation as the **built-in bounded autonomous loop** — iterate implement→test on the sub-issue until its acceptance criteria and tests pass, **or** the iteration cap (3) is reached, then **escalate** (stop and summarize what's blocking). This is the same bounded-loop mechanism the Secure phase uses (Phase 6); no external plugin is required. Gate 4 still applies once the loop finishes, unless the tier policy auto-advances it.
+1. Follow `${CLAUDE_PLUGIN_ROOT}/commands/implement.md` for the sub-issue, running it in the **built-in bounded loop** — iterate implement→test until the sub-issue's acceptance criteria and tests pass, **or** the cap (3) is reached, then **escalate** (stop and summarize what's blocking). This is the same bounded-loop mechanism the Secure phase uses (Phase 6); no external plugin is required.
+2. Then continue according to the mode chosen at Gate 3:
+   - **Review mode (step through):** stop at **Gate 4** for this sub-issue before continuing.
+   - **Autonomous mode:** do **not** stop — commit the sub-issue, `TaskUpdate` it to `completed`, and continue straight to the next available sub-issue. The workflow keeps driving (parallel where independent) until all sub-issues are done, then proceeds to Phase 5. It pauses only to **escalate** a sub-issue that hit its loop cap, or at a mandatory gate (Gate 5/6). Externalize each sub-issue's outcome to its Task so `/resume-reppit` can continue if the session ends.
 
-**Gate 4 — Implementation Review (per sub-issue):**
+**Gate 4 — Implementation Review (review mode only; per sub-issue):**
 - Ask: "Sub-issue implemented. Commit and move to next?"
 - If the user gives feedback → refine and present again. Loop until OK.
 - If OK → commit, move to next sub-issue.
+- **In autonomous mode this gate is skipped** — the workflow commits and continues on its own, stopping only on escalation or at Gate 5/6.
 
 ## Phase 5 — Test
 
@@ -109,9 +114,19 @@ Follow `${CLAUDE_PLUGIN_ROOT}/commands/secure.md` to run HIPAA/SOC2/HITRUST secu
 - If OK → commit all changes; mark the work done in your tracker — update Linear issues to Done if Linear is available, and mark the corresponding Claude Code Tasks `completed`.
 - Play notification sound, then ask: "What branch name?" and offer to create a PR.
 
+## Running unattended
+
+Autonomous mode (chosen at Gate 3) means the workflow stops *asking* between sub-issues — but the turns still come from whatever is **driving** the session. reppit-health is a set of instructions; it does not spawn its own process. So:
+
+- **Interactive Claude Code (the common case):** autonomous mode runs hands-off *within the open session* — you aren't prompted between sub-issues, but the session must stay open and the agent keeps taking turns until it reaches the next gate.
+- **Truly unattended (closed laptop, overnight, CI):** drive `/reppit … --autonomous` with an external runner that re-invokes the model — `/loop`, a scheduled cloud agent, or an Agent SDK harness. The plugin defines the *behavior*; the runner supplies the *turns*.
+
+In every case the per-sub-issue bounded loop (cap 3 → escalate) and the mandatory Secure gate bound how far the workflow can go without a human.
+
 ## Rules
 - **Gates follow the Phase 0 tier policy.** By default every gate is active (wait for explicit user approval before advancing). Only the trivial tier with `--auto` may collapse the early review gates, and `--manual` forces all gates. The **Secure phase and Gate 6 are never skipped for any tier**, and **sensitive tier never auto-advances**.
-- The Phase 6 convergence loop is the sole exception that self-drives between iterations, and it is bounded (cap 3) and escalates to the user — it never bypasses Gate 6's final approval.
+- **Autonomous mode** is chosen at Gate 3 (or pre-selected with `--autonomous`). It skips the per-sub-issue Gate 4 so the workflow self-drives through implementation, but it still stops at Gate 5/6 and still escalates on a stuck bounded loop. See "Running unattended" for how turns are supplied.
+- The Phase 6 convergence loop self-drives between iterations, bounded (cap 3) and escalating to the user — it never bypasses Gate 6's final approval.
 - **At every active gate**, before asking the user a question, run `afplay /System/Library/Sounds/Glass.aiff &` to play a notification sound so the user knows input is needed.
 - Apply the token-discipline conventions in `${CLAUDE_PLUGIN_ROOT}/commands/token-discipline.md` throughout: delegate heavy reads to subagents and forward only conclusions, pass artifact summaries between phases (re-reading files on demand), and keep stable context stable.
 - Keep all context between phases — don't re-read files you already have in context.
