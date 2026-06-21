@@ -1,0 +1,59 @@
+# Signals dashboard → GitHub Pages (TEMPLATE — copy into your repo's .github/workflows/)
+#
+# Publishes the team signals status board to GitHub Pages and updates it on every
+# push that changes signals/. The team gets one shared URL that reflects current
+# signal state.
+#
+# ⚠️  COMPLIANCE — READ BEFORE ENABLING
+#   GitHub Pages serves content publicly on a PUBLIC repo. Signals are already
+#   non-PHI summaries (the hub rule), but on a public repo your *business* signals
+#   would also be world-readable. Only enable Pages for:
+#     • a PRIVATE repo with **private** GitHub Pages (GitHub Enterprise/Team), or
+#     • a non-sensitive project where public signals are acceptable.
+#   NEVER enable on a public repo handling PHI/PHI-adjacent work. This is a
+#   data-path decision — see compliance/org-controls-audit.md.
+#
+# Setup: Settings → Pages → Source: "GitHub Actions". Then copy this file to
+#        .github/workflows/signals-pages.yml and commit.
+
+name: Signals dashboard (Pages)
+
+on:
+  push:
+    branches: [main]
+    paths: ["signals/**", "templates/signals-dashboard.html"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: signals-pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build signals data (and fail on PHI-shaped / malformed signals)
+        run: python3 bin/signals-build.py signals --strict
+
+      - name: Assemble Pages site
+        run: |
+          mkdir -p _site
+          cp templates/signals-dashboard.html _site/index.html
+          cp signals/data.js signals/data.json _site/ 2>/dev/null || true
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

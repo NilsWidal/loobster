@@ -72,6 +72,17 @@ reppit-health ships an **opt-in, default-OFF** token-compression hook (`hooks/ho
 
 ---
 
+## Shared signals hub — data-path control
+
+The signals hub (`signals/*.md`, `commands/signals.md`) is a **committed, team-shared** data sink. It is safe only while signals stay **non-PHI summaries** — the load-bearing control.
+
+| Control | Requirement | How to Verify | Status | Last Verified |
+|---------|-------------|---------------|--------|---------------|
+| §164.514 / 05.i | Shared signals contain no PHI | `python3 bin/signals-build.py signals --strict` exits 0 (no PHI-shaped or malformed signals); spot-check `signals/INDEX.md` | enforced in `/secure` | |
+| 04.a | Signals→GitHub Pages publishing is a reviewed decision | If `signals-pages.yml` is enabled: confirm the repo is **private with private Pages** (or non-PHI). Never public Pages for PHI work. | OFF by default | |
+
+---
+
 ## How to Run This Audit
 
 1. Open this file

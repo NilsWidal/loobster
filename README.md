@@ -6,12 +6,13 @@ A Claude Code plugin that runs a secure development workflow for healthcare soft
 
 ## What you get
 
-Nine slash commands, available in Claude Code, Cursor, and any client that supports the Claude Code plugin spec:
+Ten slash commands, available in Claude Code, Cursor, and any client that supports the Claude Code plugin spec:
 
 | Command | What it does |
 |---|---|
 | `/reppit <topic-or-issue>` | Run the full Research → Propose → Plan → Implement → Test → Secure workflow, with explicit approval gates between phases |
 | `/reppit-loop <goal>` | Run a continuous goal-loop: work down a prioritized backlog toward a standing goal, learning each cycle (wraps `/reppit` as its "act" step) |
+| `/signals` | Shared signals hub: any loop/teammate emits observations to a committed `signals/` store, any loop consumes the relevant ones (team coordination on one codebase) |
 | `/research-codebase` | Document the existing codebase exactly as it is today (no suggestions, no RCA) |
 | `/make-proposals` | Generate up to two solution proposals grounded in research |
 | `/make-plan` | Break the chosen proposal into ordered Linear issues (or local `plans/*.md` if Linear MCP is not configured) |
@@ -94,6 +95,32 @@ flowchart LR
 - **Goal = free text, model-judged.** The model judges met / partial / not-met against your free-text success criteria each cycle.
 - **Bounded & resumable.** Cycle cap + optional token budget; escalates on a stuck item, a sensitive Secure FAIL, or a budget spike; the backlog is durable so the loop resumes after a crash. Compliance gates and Secure are never bypassed; nothing auto-pushes.
 - **Enable compression for loops.** A goal-loop re-reads code every cycle, so we **recommend turning on Option D** (`REPPIT_HEADROOM=1`, see Token reduction above) — the repeated code reads are exactly headroom's AST-aware `CodeCompressor` sweet spot.
+
+## Signals hub
+
+A shared **central hub** for teams working on one codebase: any loop, agent, or teammate **emits** observations (frictions / opportunities / facts) into a committed `signals/` store, and any loop **consumes** the relevant ones. It's the decoupled channel that lets independent loops — and people — coordinate.
+
+```mermaid
+flowchart LR
+    LA["Loop / teammate A"] -->|emit| HUB[("signals/ hub")]
+    LB["Loop / teammate B"] -->|emit| HUB
+    LC["one-off agent / human"] -->|emit| HUB
+    HUB -->|consume relevant| LA
+    HUB -->|consume relevant| LD["Loop D"]
+    HUB -.build.-> DASH["dynamic dashboard<br/>+ optional GitHub Pages"]
+    classDef loop fill:#1f6feb,stroke:#0d419d,color:#fff;
+    classDef hub fill:#8957e5,stroke:#6e40c9,color:#fff;
+    classDef out fill:#238636,stroke:#1a7f37,color:#fff;
+    class LA,LB,LC,LD loop
+    class HUB hub
+    class DASH out
+```
+
+- **One signal = one file** — `signals/<date>-<author>-<slug>.md` (frontmatter + 1-line body). File-per-signal keeps multi-writer merge conflicts rare; `author` gives team attribution. See `commands/signals.md`.
+- **Committed + shared** — the hub is tracked so the whole team sees it. The **load-bearing rule: signals are non-PHI summaries** ("5 users asked about export", never raw PHI) — `/secure` enforces it via `bin/signals-build.py --strict`.
+- **Dynamic dashboard** — `bin/signals-build.py` regenerates `signals/{data.js,data.json,INDEX.md}`; open `templates/signals-dashboard.html` for a live team-status board (group by status / author / loop / type; auto-refresh).
+- **Optional GitHub Pages** — `templates/signals-pages.yml` publishes the dashboard to a shared team URL, updated on each push. **Private repo / non-PHI only** (a public Pages site would expose your signals) — see `compliance/org-controls-audit.md`.
+- **Signals are upstream of the backlog** — consuming a signal can spawn a RICE-scored `/reppit-loop` task.
 
 ## Install
 

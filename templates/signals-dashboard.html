@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signals — team status board</title>
+<style>
+  :root{--bg:#0d1117;--panel:#161b22;--panel2:#1c2330;--line:#30363d;--text:#e6edf3;--muted:#9aa7b4;
+    --blue:#1f6feb;--purple:#8957e5;--green:#238636;--amber:#d4a72c;--red:#da3633}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  .wrap{max-width:1200px;margin:0 auto;padding:26px 22px 70px}
+  .top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+  h1{font-size:22px;margin:0}
+  .muted{color:var(--muted)} .small{font-size:12px}
+  .counts{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 18px}
+  .pill{font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+  .pill b{color:var(--text)}
+  .pill.new{border-color:var(--blue);color:#9ec5ff} .pill.ack{border-color:var(--amber);color:#f0c674}
+  .pill.acted{border-color:var(--green);color:#86d39b} .pill.archived{border-color:var(--line)}
+  .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+  button,select{background:var(--panel2);color:var(--text);border:1px solid var(--line);
+    border-radius:7px;padding:6px 12px;font-size:13px;cursor:pointer}
+  button:hover{border-color:var(--blue)}
+  label.tog{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer}
+  .notice{background:rgba(212,167,44,.12);border:1px solid var(--amber);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px}
+  .group{margin:22px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);
+    border-bottom:1px solid var(--line);padding-bottom:6px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .card.acted{opacity:.75} .card.archived{opacity:.5}
+  .card h3{margin:0 0 6px;font-size:15px}
+  .badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .b{font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;color:#fff}
+  .b.friction{background:var(--red)} .b.opportunity{background:var(--green)} .b.fact{background:var(--blue)}
+  .b.s-new{background:var(--blue)} .b.s-ack{background:var(--amber);color:#3a2d00}
+  .b.s-acted{background:var(--green)} .b.s-archived{background:#444}
+  .b.conf{background:#30363d;color:var(--muted)}
+  .card .meta{font-size:12px;color:var(--muted);margin-bottom:8px}
+  .card .body{font-size:13px}
+  .tags{margin-top:8px} .tag{font-size:11px;color:#9ec5ff;background:rgba(31,111,235,.12);
+    border:1px solid rgba(31,111,235,.4);border-radius:5px;padding:1px 6px;margin-right:4px}
+  .empty{color:var(--muted);padding:40px;text-align:center;border:1px dashed var(--line);border-radius:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>📡 Signals — team status board</h1>
+    <span class="muted small" id="loaded"></span>
+  </div>
+  <div class="counts" id="counts"></div>
+
+  <div class="bar">
+    <button id="refresh">↻ Refresh</button>
+    <label class="tog"><input type="checkbox" id="auto" checked> auto-refresh (30s)</label>
+    <span class="muted small">group by</span>
+    <select id="groupby">
+      <option value="status">status</option>
+      <option value="author">author</option>
+      <option value="source">source loop</option>
+      <option value="type">type</option>
+    </select>
+    <span class="muted small">show</span>
+    <select id="show">
+      <option value="active">active (not archived)</option>
+      <option value="all">all</option>
+    </select>
+  </div>
+
+  <div id="notice" class="notice" style="display:none"></div>
+  <div id="board"></div>
+</div>
+
+<!-- Real data is written next to this file by bin/signals-build.py.
+     If data.js is absent (e.g. viewing the template), a small sample renders. -->
+<script src="data.js" onerror="void 0"></script>
+<script>
+const SAMPLE = [
+  {id:"2026-06-21-nils-export-too-hidden",author:"nils",source:"support-loop",type:"friction",
+   confidence:"0.8",relevance:["product","onboarding"],status:"new",title:"Export is too hidden",
+   body:"5 users this week asked how to export."},
+  {id:"2026-06-21-amy-conversion-gap",author:"amy",source:"seo-loop",type:"friction",
+   confidence:"0.8",relevance:["product","conversion"],status:"ack",title:"ai-wireframe-generator: clicks but bad conversion",
+   body:"Good CTR, weak signup. Landing page mismatch?"},
+  {id:"2026-06-21-amy-cpc-good",author:"amy",source:"ads-loop",type:"opportunity",
+   confidence:"1.0",relevance:["ads"],status:"acted",title:"lovable-alternative CPC is good",
+   body:"CPC trending well — scale this campaign."}
+];
+
+let usingSample = false;
+
+async function load(){
+  // Prefer real data.js (file:// safe). When served, fetch fresh data.json.
+  if (location.protocol.startsWith('http')) {
+    try {
+      const r = await fetch('data.json?t=' + Date.now(), {cache:'no-store'});
+      if (r.ok) { window.SIGNALS = await r.json(); }
+    } catch(e){ /* fall through to data.js / sample */ }
+  }
+  let signals = window.SIGNALS;
+  if (!Array.isArray(signals)) { signals = SAMPLE; usingSample = true; }
+  render(signals);
+  document.getElementById('loaded').textContent = 'loaded ' + new Date().toLocaleTimeString();
+}
+
+function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+
+function render(signals){
+  const notice = document.getElementById('notice');
+  if (usingSample){ notice.style.display='block';
+    notice.innerHTML='Showing <b>sample</b> data — no <code>data.js</code> found. Run <code>bin/signals-build.py</code> next to this file to render real signals.'; }
+  else notice.style.display='none';
+
+  const showAll = document.getElementById('show').value === 'all';
+  const view = signals.filter(s => showAll || s.status !== 'archived');
+
+  // counts by status
+  const byStatus = {};
+  signals.forEach(s => byStatus[s.status]=(byStatus[s.status]||0)+1);
+  const order = ['new','ack','acted','archived'];
+  document.getElementById('counts').innerHTML =
+    `<span class="pill"><b>${signals.length}</b> total</span>` +
+    order.filter(st=>byStatus[st]).map(st=>`<span class="pill ${st}"><b>${byStatus[st]}</b> ${st}</span>`).join('');
+
+  // group
+  const key = document.getElementById('groupby').value;
+  const groups = {};
+  view.forEach(s => { const g = s[key]||'—'; (groups[g]=groups[g]||[]).push(s); });
+  const board = document.getElementById('board');
+  const names = Object.keys(groups).sort();
+  if (!names.length){ board.innerHTML = '<div class="empty">No signals yet. Emit one with /signals.</div>'; return; }
+
+  board.innerHTML = names.map(g => `
+    <div class="group">${esc(g)} · ${groups[g].length}</div>
+    <div class="grid">${groups[g].map(card).join('')}</div>`).join('');
+}
+
+function card(s){
+  const tags = (Array.isArray(s.relevance)?s.relevance:[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('');
+  return `<div class="card ${esc(s.status)}">
+    <div class="badges">
+      <span class="b ${esc(s.type)}">${esc(s.type)}</span>
+      <span class="b s-${esc(s.status)}">${esc(s.status)}</span>
+      <span class="b conf">conf ${esc(s.confidence)}</span>
+    </div>
+    <h3>${esc(s.title)}</h3>
+    <div class="meta">${esc(s.author)} · ${esc(s.source)}</div>
+    <div class="body">${esc(s.body)}</div>
+    <div class="tags">${tags}</div>
+  </div>`;
+}
+
+let timer=null;
+function setAuto(){
+  if (timer){clearInterval(timer);timer=null;}
+  if (document.getElementById('auto').checked){
+    timer=setInterval(()=>{ location.protocol.startsWith('http') ? load() : location.reload(); }, 30000);
+  }
+}
+document.getElementById('refresh').onclick = () => location.protocol.startsWith('http') ? load() : location.reload();
+['groupby','show'].forEach(id => document.getElementById(id).onchange = load);
+document.getElementById('auto').onchange = setAuto;
+load(); setAuto();
+</script>
+</body>
+</html>

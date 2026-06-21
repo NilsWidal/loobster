@@ -1,7 +1,7 @@
 {
   "name": "reppit-health",
-  "version": "0.4.2",
-  "description": "AI-powered secure development workflow for healthcare software. Implements RePPITS (Research, Propose, Plan, Implement, Test, Secure) with HIPAA, SOC2, and HITRUST compliance gates that run against your diff before commit. Adaptive risk-tiered gates, a bounded autonomous fix loop, a goal-loop with an optimizable RICE-scored backlog, resumable Claude Code Tasks, parallel sub-issues, and opt-in headroom token compression. Slash commands: /reppit, /reppit-loop, /research-codebase, /make-proposals, /make-plan, /implement, /review-code, /secure, /resume-reppit.",
+  "version": "0.5.0",
+  "description": "AI-powered secure development workflow for healthcare software. Implements RePPITS (Research, Propose, Plan, Implement, Test, Secure) with HIPAA, SOC2, and HITRUST compliance gates that run against your diff before commit. Adaptive risk-tiered gates, a bounded autonomous fix loop, a goal-loop with an optimizable RICE-scored backlog, a shared team signals hub with a dynamic dashboard, resumable Claude Code Tasks, parallel sub-issues, and opt-in headroom token compression. Slash commands: /reppit, /reppit-loop, /signals, /research-codebase, /make-proposals, /make-plan, /implement, /review-code, /secure, /resume-reppit.",
   "author": {
     "name": "Cara Technologies, Inc.",
     "url": "https://caramedical.com"
@@ -27,6 +27,8 @@
     "autonomous",
     "goal-loop",
     "backlog",
+    "signals",
+    "team",
     "token-compression",
     "headroom",
     "claude-code-plugin"

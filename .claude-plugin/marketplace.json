@@ -12,7 +12,7 @@
     {
       "name": "reppit-health",
       "source": "./",
-      "description": "Run /reppit for the full Research → Propose → Plan → Implement → Test → Secure workflow with healthcare compliance gates, or invoke any phase as a standalone slash command. /reppit-loop runs a continuous goal-loop over an optimizable RICE-scored backlog. Adaptive risk-tiered gates, a bounded autonomous fix loop, resumable Tasks (/resume-reppit), parallel sub-issues, and opt-in headroom token compression. /secure runs HIPAA, SOC2, and HITRUST checklists against your diff and separates code-verifiable findings from organizational controls.",
+      "description": "Run /reppit for the full Research → Propose → Plan → Implement → Test → Secure workflow with healthcare compliance gates, or invoke any phase as a standalone slash command. /reppit-loop runs a continuous goal-loop over an optimizable RICE-scored backlog. /signals is a shared team hub where any loop emits observations and any loop consumes them, with a dynamic dashboard. Adaptive risk-tiered gates, a bounded autonomous fix loop, resumable Tasks (/resume-reppit), parallel sub-issues, and opt-in headroom token compression. /secure runs HIPAA, SOC2, and HITRUST checklists against your diff and separates code-verifiable findings from organizational controls.",
       "author": {
         "name": "Cara Technologies, Inc.",
         "url": "https://caramedical.com"
@@ -37,6 +37,8 @@
         "autonomous",
         "goal-loop",
         "backlog",
+        "signals",
+        "team",
         "token-compression",
         "headroom"
       ]

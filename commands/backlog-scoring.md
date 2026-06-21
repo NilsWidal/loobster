@@ -31,7 +31,7 @@ metadata: {
 ```
 
 ## When scoring happens
-- **Initial** — when items enter the backlog (`/make-plan` during a goal run, or backlog-gen inside the loop). Set all four factors + `score`.
+- **Initial** — when items enter the backlog (`/make-plan` during a goal run, backlog-gen inside the loop, or **a consumed signal** promoted to a task — see `${CLAUDE_PLUGIN_ROOT}/commands/signals.md`; carry the signal's `confidence` into the RICE `confidence` factor and tag the task with the signal `id`). Set all four factors + `score`.
 - **Re-score** — every *Review & learn* step: update factors from what the last cycle taught (e.g. an item that proved harder gets higher `effort`; a newly-found high-leverage gap gets high `reach`/`impact`), recompute `score`. **Never overwrite a user-set factor.**
 - **Selection** — the loop's "next item" trigger picks the highest `score` among open, unblocked tasks for the active `goalId`.
 
