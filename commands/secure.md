@@ -1,4 +1,4 @@
-Run healthcare security checks (HIPAA, SOC2, HITRUST) against all uncommitted changes.
+Run security/compliance checks against all uncommitted changes, for the frameworks you have enabled (any of: HIPAA, HITRUST, ISO 27001, SOC 2 — see `${CLAUDE_PLUGIN_ROOT}/compliance/frameworks.md`). Healthcare frameworks are one aspect — not all of them have to be on.
 
 ## What this does
 
@@ -15,11 +15,12 @@ Run healthcare security checks (HIPAA, SOC2, HITRUST) against all uncommitted ch
    - `git diff --cached`
    - `git diff HEAD`
 2. If an issue ID is provided or can be inferred from the branch name, read it for context.
-3. Read the compliance checklist files for each enabled framework:
-   - `${CLAUDE_PLUGIN_ROOT}/compliance/hipaa-checklist.md` (if HIPAA is enabled)
-   - `${CLAUDE_PLUGIN_ROOT}/compliance/soc2-checklist.md` (if SOC2 is enabled)
-   - `${CLAUDE_PLUGIN_ROOT}/compliance/hitrust-checklist.md` (if HITRUST is enabled)
-   If a workspace override exists at `.claude/compliance/<framework>-checklist.md` in the user's repo, prefer that. If neither exists, fall back to the built-in checks below.
+3. **Determine which frameworks are enabled.** Read `.claude/reppit-frameworks.json` in the user's workspace, e.g. `{ "frameworks": ["soc2", "iso27001"] }`. If it is absent, default to **all four** (`hipaa`, `hitrust`, `iso27001`, `soc2`) — nothing is silently skipped. See `${CLAUDE_PLUGIN_ROOT}/compliance/frameworks.md` for keys and profiles. Then read the checklist for each **enabled** framework:
+   - `${CLAUDE_PLUGIN_ROOT}/compliance/hipaa-checklist.md`
+   - `${CLAUDE_PLUGIN_ROOT}/compliance/hitrust-checklist.md`
+   - `${CLAUDE_PLUGIN_ROOT}/compliance/iso27001-checklist.md`
+   - `${CLAUDE_PLUGIN_ROOT}/compliance/soc2-checklist.md`
+   If a workspace override exists at `.claude/compliance/<framework>-checklist.md` in the user's repo, prefer that. If neither exists, fall back to the built-in checks below. Only run frameworks that are enabled.
 4. Run each security checklist against the diff.
    - **Token discipline (see `${CLAUDE_PLUGIN_ROOT}/commands/token-discipline.md`):** when the diff is large or several frameworks are enabled, delegate each framework's checklist evaluation to its own `Agent` subagent and collect only the per-item PASS/WARN/FAIL verdicts. The main thread assembles the report from those verdicts. Never let a subagent's raw file reads back into the main context — only the verdicts.
 5. **For items marked `[org]`**: Do NOT auto-pass these. Instead, check if the diff touches files relevant to that control (e.g., CDK/infrastructure changes for physical safeguards, CI/CD changes for change management). If the diff is relevant, evaluate what you can. If not, mark as `SKIPPED` with a note that it requires periodic organizational review.
@@ -51,6 +52,14 @@ Run healthcare security checks (HIPAA, SOC2, HITRUST) against all uncommitted ch
 - No secrets or credentials in code
 - Change management (PR review, automated deployment)
 
+### Built-in ISO 27001 Checks (fallback)
+
+- Secure development (A.8.25–8.28): input validation at trust boundaries, no injection vectors, output encoding
+- Cryptography (A.8.24): TLS in transit, sensitive data encrypted at rest, strong algorithms, no hardcoded keys
+- Access control & authentication (A.8.2–8.5): server-side authz, correct session/token handling, least privilege
+- Logging & masking (A.8.15–8.16, A.8.11–8.12): security actions logged; secrets/sensitive data masked in logs and errors
+- Vulnerability & config management (A.8.8–8.9): pinned dependencies, no committed secrets
+
 ### Built-in HITRUST Checks (fallback)
 
 - Session management (proper token handling, expiry)
@@ -64,18 +73,10 @@ Run healthcare security checks (HIPAA, SOC2, HITRUST) against all uncommitted ch
 ## Security Review
 
 Summary: <1-2 sentences>
+Frameworks run: <list the enabled frameworks, e.g. SOC2, ISO 27001>
 
-### HIPAA
-| Status | Check | Detail |
-|--------|-------|--------|
-| PASS/WARN/FAIL | <check name> | <explanation> |
-
-### SOC2
-| Status | Check | Detail |
-|--------|-------|--------|
-| PASS/WARN/FAIL | <check name> | <explanation> |
-
-### HITRUST
+<!-- One section per ENABLED framework (omit disabled ones) -->
+### <FRAMEWORK>
 | Status | Check | Detail |
 |--------|-------|--------|
 | PASS/WARN/FAIL | <check name> | <explanation> |

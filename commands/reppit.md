@@ -103,7 +103,7 @@ After all sub-issues are implemented, follow `${CLAUDE_PLUGIN_ROOT}/commands/rev
 
 ## Phase 6 — Secure
 
-Follow `${CLAUDE_PLUGIN_ROOT}/commands/secure.md` to run HIPAA/SOC2/HITRUST security checks against all changes.
+Follow `${CLAUDE_PLUGIN_ROOT}/commands/secure.md` to run security checks against all changes, for the **enabled frameworks** (any of HIPAA, HITRUST, ISO 27001, SOC 2 — configured via `.claude/reppit-frameworks.json`; see `${CLAUDE_PLUGIN_ROOT}/compliance/frameworks.md`).
 
 **Gate 6 — Security Review:**
 - If there are FAIL items, run the **bounded autonomous convergence loop** (no gate between iterations — this is the one place the workflow self-drives):

@@ -1,0 +1,4 @@
+{
+  "_comment": "Copy to .claude/reppit-frameworks.json in your repo to choose which compliance frameworks /secure runs. Omit the file to run all four. Keys: hipaa, hitrust, iso27001, soc2. See compliance/frameworks.md.",
+  "frameworks": ["soc2", "iso27001"]
+}

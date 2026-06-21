@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0 — Configurable compliance frameworks (health is one aspect) + clearer README
+
+- **Frameworks are now enable/disable** per repo via `.claude/reppit-frameworks.json` (`{ "frameworks": ["soc2","iso27001"] }`); `/secure` runs only the enabled ones, defaulting to all four when no config is present. Healthcare (HIPAA/HITRUST) is positioned as **one profile**, not a requirement. See `compliance/frameworks.md`.
+- **New ISO/IEC 27001:2022 checklist** (`compliance/iso27001-checklist.md`) — Annex A controls relevant to a code diff (secure development, cryptography, access control, logging/masking, vulnerability/config management) + built-in fallback checks in `/secure`.
+- `secure.md` is now framework-agnostic: reads the enabled set, runs one section per enabled framework, and the report lists which frameworks ran.
+- **README rewritten for clarity/visibility** — an "At a glance" capability table surfaces adaptive gating, autonomous mode, the goal-loop, the signals hub, configurable compliance, and token discipline up front; repositioned from "healthcare software" to a secure autonomous dev workflow where healthcare is one aspect.
+- Supported frameworks: **HIPAA · HITRUST · ISO 27001 · SOC 2**. Sample config at `compliance/reppit-frameworks.example.json`.
+- Bump to 0.6.0; add `iso27001` / `frameworks` keywords. (Repo/plugin rename to a general name is tracked as a follow-up — a GitHub repo rename preserves stars + sets up redirects; the plugin `name` is unchanged here to avoid breaking existing installs.)
+
 ## 0.5.0 — Signals hub (team coordination) + dynamic dashboard
 
 - **New `/signals` — a shared central hub** for multi-person teams on one codebase: any loop/agent/teammate **emits** observations (friction/opportunity/fact) to a committed `signals/<date>-<author>-<slug>.md` store, and any loop **consumes** the relevant ones. File-per-signal = merge-safe for multiple writers; `author` gives attribution; cross-author dedup; lifecycle `new→ack→acted→archived`.

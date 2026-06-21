@@ -1,8 +1,20 @@
 # RePPIT Health
 
-A Claude Code plugin that runs a secure development workflow for healthcare software.
+A Claude Code plugin that runs a **secure, autonomous development workflow** — with configurable compliance gates. **Healthcare (HIPAA/HITRUST) is one aspect**, alongside ISO 27001 and SOC 2; enable only the frameworks you need.
 
-**RePPIT Health** implements the **RePPITS** methodology, **R**esearch, **P**ropose, **P**lan, **I**mplement, **T**est, **S**ecure, extending the [RePPIT framework](https://themodernsoftware.dev) by [Mihail Eric](https://github.com/mihail911) (Head of AI, creator of Stanford's first AI software engineering course) with HIPAA, SOC2, and HITRUST compliance gates for healthcare and healthtech teams.
+**RePPIT Health** implements the **RePPITS** methodology — **R**esearch, **P**ropose, **P**lan, **I**mplement, **T**est, **S**ecure — extending the [RePPIT framework](https://themodernsoftware.dev) by [Mihail Eric](https://github.com/mihail911) (Head of AI, creator of Stanford's first AI software engineering course) with compliance gates that run against your diff before commit.
+
+## At a glance
+
+| Capability | What it does |
+|---|---|
+| **RePPITS workflow** | Research → Propose → Plan → Implement → Test → Secure, with explicit approval gates |
+| **Adaptive gating** | Phase-0 right-sizing (trivial / standard / sensitive) chooses which gates apply; sensitive never auto-advances |
+| **Autonomous mode** | At Gate 3, "run autonomously" drives Implement → Test → Secure on its own (bounded loop, cap 3, escalate; final commit/push always stops) |
+| **Goal-loop** | `/reppit-loop` works a prioritized RICE-scored backlog toward a standing goal, cycle after cycle |
+| **Signals hub** | `/signals` — a shared team hub: any loop/teammate emits observations, any loop consumes them, with a dynamic dashboard |
+| **Configurable compliance** | Enable any of **HIPAA · HITRUST · ISO 27001 · SOC 2** per repo — healthcare is a profile, not a requirement |
+| **Token discipline** | Subagent isolation + artifact compaction always on; optional [headroom](https://github.com/chopratejas/headroom) compression |
 
 ## What you get
 
@@ -166,20 +178,31 @@ or with a Linear issue:
 
 The plugin walks Research → Propose → Plan → Implement → Test → Secure and pauses at each gate for your approval. You can also invoke any phase directly, e.g. `/secure` to audit current uncommitted changes without running the full flow.
 
-## Compliance checklists
+## Compliance checklists — pick your frameworks
 
-Checklists live in `compliance/` inside the installed plugin:
+Compliance is **configurable**: enable any of four frameworks per repo. Healthcare is one aspect, not a requirement. Checklists live in `compliance/` inside the installed plugin:
 
 - **`hipaa-checklist.md`** — Administrative, physical, and technical safeguards (§164.308-312), PHI detection, minimum necessary, BAA verification, breach notification, telehealth compliance
-- **`soc2-checklist.md`** — All Trust Service Criteria (CC1-CC9), Availability (A1), Confidentiality (C1), Processing Integrity (PI1), Privacy (P1), plus injection prevention and secrets management
 - **`hitrust-checklist.md`** — All 14 CSF v11 control categories (00-13): access control, risk management, encryption, operations, incident management, business continuity, privacy practices, cross-tenant isolation
+- **`iso27001-checklist.md`** — ISO/IEC 27001:2022 Annex A controls relevant to a code diff: secure development (A.8.25-28), cryptography, access control, logging & masking, vulnerability & config management
+- **`soc2-checklist.md`** — All Trust Service Criteria (CC1-CC9), Availability (A1), Confidentiality (C1), Processing Integrity (PI1), Privacy (P1), plus injection prevention and secrets management
 - **`org-controls-audit.md`** — Schedule and tracking for organizational controls that can't be verified from code alone
 
 Each item gets a PASS / WARN / FAIL / SKIPPED status. Items marked `[org]` (physical safeguards, board oversight, BAAs with subprocessors) are surfaced separately so they don't get auto-passed by a green diff.
 
+### Enable / disable frameworks
+
+Drop `.claude/reppit-frameworks.json` in your repo to choose which run:
+
+```json
+{ "frameworks": ["soc2", "iso27001"] }
+```
+
+`/secure` runs only the listed frameworks; with no file, the default is **all four**. Suggested profiles — healthcare: `["hipaa","hitrust","soc2"]` · general SaaS: `["soc2","iso27001"]`. See `compliance/frameworks.md`.
+
 ### Per-workspace overrides
 
-If you want to customize a checklist for a specific repo, drop a file at `.claude/compliance/<framework>-checklist.md` in that workspace. `/secure` reads workspace overrides first, then falls back to the plugin's defaults.
+To customize a checklist for a specific repo, drop a file at `.claude/compliance/<framework>-checklist.md` in that workspace. `/secure` reads workspace overrides first, then falls back to the plugin's defaults.
 
 ## Linear integration (optional)
 
