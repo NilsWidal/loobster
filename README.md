@@ -1,5 +1,19 @@
 # RePPIT Health
 
+```
+     \v/             \v/
+    ( \ \           / / )
+     \ \ \   ___   / / /
+      \ \ \ (o o) / / /
+       \ '--( L )--' /
+       \\\ \|||/ ///
+        \\ )|||( //
+           (_/ \_)
+          L O O B S T E R
+```
+
+> 🦞 **Loobster** — loop + lobster. Run [`bin/loobster.sh`](bin/loobster.sh) for the animated red version.
+
 A Claude Code plugin that runs a **secure, autonomous development workflow** — with configurable compliance gates. **Healthcare (HIPAA/HITRUST) is one aspect**, alongside ISO 27001 and SOC 2; enable only the frameworks you need.
 
 **RePPIT Health** implements the **RePPITS** methodology — **R**esearch, **P**ropose, **P**lan, **I**mplement, **T**est, **S**ecure — extending the [RePPIT framework](https://themodernsoftware.dev) by [Mihail Eric](https://github.com/mihail911) (Head of AI, creator of Stanford's first AI software engineering course) with compliance gates that run against your diff before commit.
@@ -18,19 +32,20 @@ A Claude Code plugin that runs a **secure, autonomous development workflow** —
 
 ## What you get
 
-Ten slash commands, available in Claude Code, Cursor, and any client that supports the Claude Code plugin spec:
+Eleven slash commands, available in Claude Code, Cursor, and any client that supports the Claude Code plugin spec:
 
 | Command | What it does |
 |---|---|
 | `/reppit <topic-or-issue>` | Run the full Research → Propose → Plan → Implement → Test → Secure workflow, with explicit approval gates between phases |
 | `/reppit-loop <goal>` | Run a continuous goal-loop: work down a prioritized backlog toward a standing goal, learning each cycle (wraps `/reppit` as its "act" step) |
 | `/signals` | Shared signals hub: any loop/teammate emits observations to a committed `signals/` store, any loop consumes the relevant ones (team coordination on one codebase) |
+| `/verify-frontend` | Verifiable frontend layer: when a change touches the UI, capture Playwright screenshots and attach them to the PR (GitHub-native, no other accounts) |
 | `/research-codebase` | Document the existing codebase exactly as it is today (no suggestions, no RCA) |
 | `/make-proposals` | Generate up to two solution proposals grounded in research |
 | `/make-plan` | Break the chosen proposal into ordered Linear issues (or local `plans/*.md` if Linear MCP is not configured) |
 | `/implement <issue>` | Implement a single Linear issue (optionally inside the built-in bounded autonomous loop via `--autonomous`) |
 | `/review-code` | Review all uncommitted changes, post findings to Linear |
-| `/secure` | Run HIPAA, SOC2, and HITRUST checklists against your diff, separating code-verifiable findings from organizational controls |
+| `/secure` | Run your enabled checklists (any of HIPAA, HITRUST, ISO 27001, SOC 2) against your diff, separating code-verifiable findings from organizational controls |
 | `/resume-reppit` | Resume a paused, interrupted, or crashed workflow by reconstructing state from Claude Code Tasks |
 
 ```mermaid

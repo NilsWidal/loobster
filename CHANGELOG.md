@@ -8,6 +8,9 @@
 - **README rewritten for clarity/visibility** — an "At a glance" capability table surfaces adaptive gating, autonomous mode, the goal-loop, the signals hub, configurable compliance, and token discipline up front; repositioned from "healthcare software" to a secure autonomous dev workflow where healthcare is one aspect.
 - Supported frameworks: **HIPAA · HITRUST · ISO 27001 · SOC 2**. Sample config at `compliance/reppit-frameworks.example.json`.
 - Bump to 0.6.0; add `iso27001` / `frameworks` keywords. (Repo/plugin rename to a general name is tracked as a follow-up — a GitHub repo rename preserves stars + sets up redirects; the plugin `name` is unchanged here to avoid breaking existing installs.)
+- **Never self-verify (new core rule):** every verification/review/judgment step (Test, Secure, frontend verify, the loop's verify) MUST run in a **separate verifier subagent** that did not produce the work. Wired into `reppit.md`, `review-code.md`, `secure.md`, `reppit-loop.md`, `verify-frontend.md`.
+- **Verifiable frontend layer:** new `/verify-frontend` — when a change touches the UI, capture Playwright screenshots (`bin/screenshot.mjs`, blocks on 4xx/5xx or console errors) and attach them to the PR **GitHub-native, no other accounts** (Actions artifacts via `templates/playwright-verify.yml` + a native PR comment; or committed-to-branch images embedded via raw URLs). Wired into the Test phase.
+- **Loobster** 🦞 — loop + lobster mascot. Animated red ASCII via `bin/loobster.sh`; static version in the README.
 
 ## 0.5.0 — Signals hub (team coordination) + dynamic dashboard
 
