@@ -9,6 +9,12 @@ Trigger (next backlog item) → Investigate & Act → Backlog gen / Assign → R
 - **One invocation runs cycles back-to-back in this session** — after each Review & learn, **immediately start the next cycle without asking**, and keep going until an exit condition (below). Do not stop after one item; running many cycles is the whole point.
 - **For unattended / persistent looping** (close the laptop, overnight, CI): wrap it with a driver that re-invokes it — `/loop /reppit-health:reppit-loop <goal>`, a scheduled cloud agent, or an Agent SDK harness. The command resumes from the backlog each time. The plugin defines the behavior; the driver supplies the turns.
 
+### Permissions (loop autonomy ≠ tool permissions)
+The loop suppresses *its own* questions, but **Claude Code's tool-permission prompts are a separate layer** the loop can't control. The subagents this loop spawns do **not** inherit a session's runtime `--dangerously-skip-permissions` flag — they resolve their permission mode from settings. So if `permissions.defaultMode` is `auto` or `default`, you'll be prompted per file write **even though the main session shows bypass** (auto mode's classifier independently evaluates each subagent's tool calls). To run the loop prompt-free:
+- Set `permissions.defaultMode: "bypassPermissions"` in `~/.claude/settings.json` (a launch flag alone is not enough for subagents).
+- Add a `permissions.deny` list (e.g. recursive deletes, force-push, hard-reset, `.env` reads) — `deny`/`ask` rules still fire in bypass, so you keep guardrails.
+- Then restart the session (settings load at start).
+
 ## This command is executable, not advisory — do these concrete steps
 On invocation, **actually perform** the following (don't just describe them):
 
@@ -20,6 +26,7 @@ On invocation, **actually perform** the following (don't just describe them):
 ### The loop — repeat until an exit condition
 1. **Trigger (next item):** `TaskList`, filter to open, unblocked tasks for this `goalId`, pick the highest `metadata.score` (ties → lowest effort, then lowest id). If none remain → go to step 4 to decide done-vs-new-work.
 2. **Investigate & Act — in a subagent** (`Agent`, so the heavy reads stay out of the loop's context): the subagent investigates the item, then **acts** — substantial change → run `/reppit <item>` (autonomous mode; sensitive items still hit full gates + Secure); small fix → do it directly. It returns **only** a compact result: outcome, any new backlog items (with RICE), and a one-line learning. `TaskUpdate` the worked item (`in_progress`→`completed`, or keep `in_progress` + record the blocker).
+   - **Do not force `isolation: "worktree"` on the act subagent.** A worktree writes into an untrusted `.claude/worktrees/<id>/` path, and combined with non-bypass permission modes it surfaces a write-prompt per file (see "Permissions" above) — which defeats unattended running. Use worktree isolation only when genuinely parallelizing independent sub-issues **and** the session is in `bypassPermissions`; otherwise run the act in the loop's own permission context.
 3. **Backlog gen / Assign:** `TaskCreate` the new items the subagent surfaced (scored, tagged with `goalId`).
 4. **Review & learn:** model-judge the cycle's result against the goal's success criteria → **met / partial / not-met**; append a one-line learning to `plans/loop/<slug>.md` (re-summarize the log so it stays small); **re-score** the backlog from what this cycle taught (never overwrite user-set factors).
 5. **Loop:** if no exit condition, **go straight back to step 1** — do not pause for the user between cycles.
