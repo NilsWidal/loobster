@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 — Goal-loop mode (dedicated loops & goals + optimizable backlog)
+
+- **New `/reppit-goal <goal>` command:** a continuous goal-loop — Trigger (next backlog item) → Investigate & Act (runs `/reppit` in an isolated subagent) → Backlog gen/assign → Review & learn → ↺ — until the goal is met, the cycle cap is hit, or budget is exhausted. Wraps RePPITS as its "act" step; never bypasses gates/Secure; never auto-pushes; resumable from the backlog.
+- **Optimizable backlog = Claude Code Tasks + metadata.** New `commands/backlog-scoring.md` defines a **model-set RICE** score (`(reach × impact × confidence) / effort`) stored in each Task's `metadata`; the loop works the highest-scored open item and re-scores each cycle. `/make-plan` tags sub-tasks with the `goalId` + RICE when run under a goal.
+- **Goal = free text, model-judged** (met / partial / not-met against free-text success criteria).
+- **Token economics for loops:** per-cycle subagent isolation + artifact-compacted backlog/learnings (always on), a per-cycle budget guard, and a **hard recommendation to enable Option D headroom AST compression** (`REPPIT_HEADROOM=1`) — a loop's repeated code reads are headroom's `CodeCompressor` (AST) sweet spot.
+- README: new "Goal-loop mode" section with a rendered Mermaid loop diagram.
+
 ## 0.3.2 — Autonomous mode spans the full loop (4→6)
 
 - **Fix:** autonomous mode now drives the whole **Implement → Test → Secure** loop (Phases 4–6), not just Phase 4. Previously it halted at Gate 5 ("Proceed to security check?"), so the loop only ran within implementation.

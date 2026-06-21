@@ -15,6 +15,7 @@ Break the chosen proposal into a concrete implementation plan.
 3. If Linear is not available:
    - Create a `plans/` directory with a parent plan `.md` file and individual task `.md` files.
 4. Regardless of whether Linear is available, also create Claude Code Tasks using `TaskCreate` for each sub-task. This provides persistent task tracking that survives across sessions.
+   - **When invoked under a goal-loop** (`/reppit-goal`): tag each Task's `metadata` with the active `goalId` and a RICE score per `${CLAUDE_PLUGIN_ROOT}/commands/backlog-scoring.md`, so the sub-tasks join the prioritized backlog.
 5. Present the plan to the user for review.
 
 ## Notes
