@@ -35,6 +35,7 @@ Run healthcare security checks (HIPAA, SOC2, HITRUST) against all uncommitted ch
 ### Built-in HIPAA Checks (fallback)
 
 - No PHI (names, DOB, SSN, emails, phone numbers) in logs, comments, error messages, or string literals
+- **No PHI in shared signal files** (`signals/*.md`) — signals are committed/shared and must be non-PHI summaries; if the diff touches `signals/`, run `${CLAUDE_PLUGIN_ROOT}/bin/signals-build.py signals --strict` and treat any PHI-shaped or malformed signal as a **FAIL**
 - Data at rest encryption (no plaintext storage of sensitive fields)
 - Data in transit (HTTPS/TLS for all external calls)
 - Access control (authentication checks, proper authorization)

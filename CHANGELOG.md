@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 — Signals hub (team coordination) + dynamic dashboard
+
+- **New `/signals` — a shared central hub** for multi-person teams on one codebase: any loop/agent/teammate **emits** observations (friction/opportunity/fact) to a committed `signals/<date>-<author>-<slug>.md` store, and any loop **consumes** the relevant ones. File-per-signal = merge-safe for multiple writers; `author` gives attribution; cross-author dedup; lifecycle `new→ack→acted→archived`.
+- **Loop integration** — `/reppit-loop` now consumes relevant signals in its Trigger step and emits signals in Review & learn; a consumed signal can spawn a RICE-scored backlog task.
+- **Dynamic team dashboard** — `bin/signals-build.py` regenerates `signals/{data.js,data.json,INDEX.md}` from the signal files; `templates/signals-dashboard.html` renders a live status board (group by status/author/loop/type, auto-refresh, works from `file://` and when served). Tests in `tests/test-signals-build.sh`.
+- **Optional GitHub Pages** — `templates/signals-pages.yml` publishes the dashboard to a shared team URL on each push. **Private repo / non-PHI only.**
+- **Compliance** — the load-bearing rule is **no PHI in shared signals** (committed + shared); `/secure` enforces it (`signals-build.py --strict`), and `compliance/org-controls-audit.md` adds a signals + Pages data-path control.
+- Bump to 0.5.0; add `signals`/`team` keywords; `/signals` added to the command list.
+
 ## 0.4.2 — Loop permission prompts: docs + safer subagent defaults
 
 - **Documented the real cause of mid-loop permission prompts:** subagents do **not** inherit a session's runtime `--dangerously-skip-permissions`; they resolve mode from settings, and `defaultMode: "auto"` makes the classifier evaluate each subagent's tool calls — so you get write prompts even when the main session shows bypass. Fix: set `permissions.defaultMode: "bypassPermissions"` (a launch flag alone isn't enough for subagents) plus a `deny` guardrail list.
