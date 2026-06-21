@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.2 — Loop permission prompts: docs + safer subagent defaults
+
+- **Documented the real cause of mid-loop permission prompts:** subagents do **not** inherit a session's runtime `--dangerously-skip-permissions`; they resolve mode from settings, and `defaultMode: "auto"` makes the classifier evaluate each subagent's tool calls — so you get write prompts even when the main session shows bypass. Fix: set `permissions.defaultMode: "bypassPermissions"` (a launch flag alone isn't enough for subagents) plus a `deny` guardrail list.
+- **`/reppit-loop`:** new "Permissions" section; the act step no longer forces `isolation: "worktree"` (worktrees write to untrusted paths and trigger prompts under non-bypass modes) — worktree isolation is now reserved for genuine parallelism under bypass.
+- **`/reppit` Phase 4:** added the same permission caveat to the parallel/worktree sub-issue guidance.
+
 ## 0.4.1 — Rename to /reppit-loop + make the loop concretely runnable
 
 - **Renamed `/reppit-goal` → `/reppit-loop`** (the dedicated loop command). Invoke it namespaced: **`/reppit-health:reppit-loop <goal>`** (the bare `/reppit-loop` only resolves if aliased as a project command).
