@@ -3,10 +3,10 @@
 // Used by the RePPITS Test phase / goal-loop and by templates/playwright-verify.yml.
 //
 //   node bin/screenshot.mjs --base http://localhost:3000 --paths / /login /dashboard
-//   node bin/screenshot.mjs --config .reppit/screens.json
+//   node bin/screenshot.mjs --config .loobster/screens.json
 //
 // Requires Playwright in the target repo:  npm i -D playwright  &&  npx playwright install chromium
-// Writes PNGs to .reppit/screens/ (override with --out). Exits non-zero if a page errors,
+// Writes PNGs to .loobster/screens/ (override with --out). Exits non-zero if a page errors,
 // so the loop/PR check can BLOCK on a broken frontend.
 
 import { mkdirSync, existsSync, readFileSync } from 'node:fs';
@@ -21,7 +21,7 @@ function arg(name, def) {
   return vals.length <= 1 ? (vals[0] ?? true) : vals;
 }
 
-const out = arg('out', '.reppit/screens');
+const out = arg('out', '.loobster/screens');
 const base = arg('base', process.env.BASE_URL || 'http://localhost:3000');
 const configPath = arg('config', null);
 

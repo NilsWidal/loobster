@@ -1,6 +1,6 @@
 Run security/compliance checks against all uncommitted changes, for the frameworks you have enabled (any of: HIPAA, HITRUST, ISO 27001, SOC 2 — see `${CLAUDE_PLUGIN_ROOT}/compliance/frameworks.md`). Healthcare frameworks are one aspect — not all of them have to be on.
 
-> **Independent assessment — never self-verify.** Run this in a **separate verifier subagent** (`Agent`) that did not produce the code. Per the token-discipline note below, delegate each enabled framework's checklist to its own judge subagent; the implementing agent never grades its own diff. (See the "Never self-verify" rule in `reppit.md`.)
+> **Independent assessment — never self-verify.** Run this in a **separate verifier subagent** (`Agent`) that did not produce the code. Per the token-discipline note below, delegate each enabled framework's checklist to its own judge subagent; the implementing agent never grades its own diff. (See the "Never self-verify" rule in `run.md`.)
 
 ## What this does
 
@@ -17,7 +17,7 @@ Run security/compliance checks against all uncommitted changes, for the framewor
    - `git diff --cached`
    - `git diff HEAD`
 2. If an issue ID is provided or can be inferred from the branch name, read it for context.
-3. **Determine which frameworks are enabled.** Read `.claude/reppit-frameworks.json` in the user's workspace, e.g. `{ "frameworks": ["soc2", "iso27001"] }`. If it is absent, default to **all four** (`hipaa`, `hitrust`, `iso27001`, `soc2`) — nothing is silently skipped. See `${CLAUDE_PLUGIN_ROOT}/compliance/frameworks.md` for keys and profiles. Then read the checklist for each **enabled** framework:
+3. **Determine which frameworks are enabled.** Read `.claude/loobster-frameworks.json` in the user's workspace, e.g. `{ "frameworks": ["soc2", "iso27001"] }`. If it is absent, default to **all four** (`hipaa`, `hitrust`, `iso27001`, `soc2`) — nothing is silently skipped. See `${CLAUDE_PLUGIN_ROOT}/compliance/frameworks.md` for keys and profiles. Then read the checklist for each **enabled** framework:
    - `${CLAUDE_PLUGIN_ROOT}/compliance/hipaa-checklist.md`
    - `${CLAUDE_PLUGIN_ROOT}/compliance/hitrust-checklist.md`
    - `${CLAUDE_PLUGIN_ROOT}/compliance/iso27001-checklist.md`
@@ -33,7 +33,7 @@ Run security/compliance checks against all uncommitted changes, for the framewor
    - **SKIPPED** — cannot be verified from code diff (organizational/physical control)
 7. Present the report using the output template below.
 8. If Linear MCP tools are available and an issue was identified, post the security report as a comment.
-9. If Claude Code Tasks track this work (`TaskList`), record the result: any task with an unresolved **FAIL** stays `in_progress` (a FAIL blocks completion); mark tasks `completed` only when no FAIL remains. This keeps `/resume-reppit` and the Phase 6 convergence loop accurate across sessions.
+9. If Claude Code Tasks track this work (`TaskList`), record the result: any task with an unresolved **FAIL** stays `in_progress` (a FAIL blocks completion); mark tasks `completed` only when no FAIL remains. This keeps `/resume` and the Phase 6 convergence loop accurate across sessions.
 
 ### Built-in HIPAA Checks (fallback)
 
@@ -100,5 +100,5 @@ Blocking issues: <count>
 - FAIL items should block any commit/push — flag clearly.
 - WARN items need human judgment — present but don't block.
 - SKIPPED items are organizational controls — they do NOT block but must be tracked via periodic audit.
-- This command can be run standalone or as part of the full `/reppit` flow.
+- This command can be run standalone or as part of the full `/run` flow.
 - If this diff touches infrastructure (CDK, K8s, CI/CD), evaluate relevant `[org]` items against the infrastructure changes rather than skipping them.

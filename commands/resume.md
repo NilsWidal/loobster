@@ -1,6 +1,6 @@
 Resume a paused, interrupted, or crashed RePPITS workflow by reconstructing state from Claude Code Tasks.
 
-The full `/reppit` flow keeps its state in the conversation context, which is lost on a crash, a `stop`/`pause`, or a new session. The durable record is the Claude Code Tasks created during Phase 3 (Plan) and advanced during Implement/Test/Secure. This command rebuilds from that record and continues from the last incomplete step.
+The full `/run` flow keeps its state in the conversation context, which is lost on a crash, a `stop`/`pause`, or a new session. The durable record is the Claude Code Tasks created during Phase 3 (Plan) and advanced during Implement/Test/Secure. This command rebuilds from that record and continues from the last incomplete step.
 
 ## Arguments
 - **topic** (optional): The original topic or Linear issue ID. If omitted, infer from the open Tasks and the local `plans/` directory.
@@ -15,9 +15,9 @@ The full `/reppit` flow keeps its state in the conversation context, which is lo
    - `pending` tasks with an empty `blockedBy` = the next available work, lowest ID first.
    - `pending` tasks still `blockedBy` open tasks = not yet startable.
 3. **Confirm the reconstructed state with the user** before resuming: list what's done, what was in-flight, and what's next. Play the gate sound (`afplay /System/Library/Sounds/Glass.aiff &`) and ask: "Resume from here?"
-4. **Continue the workflow** from the first available task, following `${CLAUDE_PLUGIN_ROOT}/commands/reppit.md` from the matching phase. Re-apply the Phase 0 tier and gate policy that was recorded in the plan.
+4. **Continue the workflow** from the first available task, following `${CLAUDE_PLUGIN_ROOT}/commands/run.md` from the matching phase. Re-apply the Phase 0 tier and gate policy that was recorded in the plan.
 
 ## Notes
 - This command never re-implements completed work; the Task record is the source of truth.
-- If `TaskList` is empty and no `plans/` artifact exists, there is nothing to resume — say so and suggest starting a fresh `/reppit`.
+- If `TaskList` is empty and no `plans/` artifact exists, there is nothing to resume — say so and suggest starting a fresh `/run`.
 - Pairs with the Phase 6 convergence loop, which externalizes each iteration's outcome so a mid-loop crash is resumable.

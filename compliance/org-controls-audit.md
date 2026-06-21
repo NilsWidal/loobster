@@ -14,7 +14,7 @@ These controls **cannot be verified from code diffs**. They require manual verif
 
 | Control | Requirement | How to Verify | Status | Last Verified |
 |---------|-------------|---------------|--------|---------------|
-| §164.308(a)(4) | Healthcare clearinghouse function isolation | N/A — Cara is not a clearinghouse | N/A | 2026-04-12 |
+| §164.308(a)(4) | Healthcare clearinghouse function isolation | N/A — this organization is not a clearinghouse | N/A | 2026-04-12 |
 | §164.308(a)(5) | Security awareness training for workforce | Check training records for all team members | | |
 | §164.308(b) | BAA signed with all PHI-handling vendors | Review `docs/BAA_REGISTRY.md` — verify all entries are current | | |
 
@@ -33,9 +33,9 @@ These controls **cannot be verified from code diffs**. They require manual verif
 |---------|-------------|---------------|--------|---------------|
 | CC1.1 | Code of conduct / integrity | Verify employee handbook includes security expectations | | |
 | CC1.2 | Board/management oversight of security | Verify security review is part of leadership meetings | | |
-| CC1.3 | CI/CD and infra changes reviewed by authorized personnel | Check GitHub branch protection rules: `gh api repos/carainc/graft-md/branches/main/protection` | | |
+| CC1.3 | CI/CD and infra changes reviewed by authorized personnel | Check GitHub branch protection rules: `gh api repos/<owner>/<repo>/branches/main/protection` | | |
 | CC3.1 | Risk assessment for new features | Verify threat modeling happens during planning (Linear ticket templates, ADRs) | | |
-| CC6.1 | Least-privilege IAM policies | Run `aws iam get-account-authorization-details --profile cara-prod` — audit for over-permissioned roles | | |
+| CC6.1 | Least-privilege IAM policies | Run `aws iam get-account-authorization-details --profile <prod-profile>` — audit for over-permissioned roles | | |
 | CC6.4 | Physical access to cloud infrastructure | Verify AWS SOC2 Type II report is current (inherited control) | | |
 | CC8.1 | PR review before merge | Check GitHub branch protection: `Require pull request reviews before merging` is enabled | | |
 
@@ -53,7 +53,7 @@ These controls **cannot be verified from code diffs**. They require manual verif
 | 05.i | Third-party integrations have documented security evaluation | Review `docs/BAA_REGISTRY.md` for completeness | | |
 | 05.i | BAAs exist for PHI-handling third parties | Cross-reference running services with BAA registry | | |
 | 06.a | HIPAA and state privacy law compliance | Legal review of terms, privacy policy, BAA template | | |
-| 07.a | New infrastructure resources tagged and inventoried | Run `aws resourcegroupstaggingapi get-resources --profile cara-prod` — verify tagging | | |
+| 07.a | New infrastructure resources tagged and inventoried | Run `aws resourcegroupstaggingapi get-resources --profile <prod-profile>` — verify tagging | | |
 | 07.b | Services/components have designated owners | Verify CODEOWNERS covers all directories | | |
 | 08.a | Cloud provider physical security | Verify AWS SOC2 Type II report available and current | | |
 | 10.h | Changes go through PR review | Same as CC8.1 | | |
@@ -63,12 +63,12 @@ These controls **cannot be verified from code diffs**. They require manual verif
 
 ## Optional token-compression hook (Option D) — data-path control
 
-reppit-health ships an **opt-in, default-OFF** token-compression hook (`hooks/hooks.json` → `bin/headroom-compress.py`) that routes large tool outputs through a locally-installed [headroom](https://github.com/chopratejas/headroom) before they reach the model. **Enabling it (`REPPIT_HEADROOM=1`) places a third-party compressor in the PHI data path** and must be treated as an organizational control.
+loobster ships an **opt-in, default-OFF** token-compression hook (`hooks/hooks.json` → `bin/headroom-compress.py`) that routes large tool outputs through a locally-installed [headroom](https://github.com/chopratejas/headroom) before they reach the model. **Enabling it (`LOOBSTER_HEADROOM=1`) places a third-party compressor in the PHI data path** and must be treated as an organizational control.
 
 | Control | Requirement | How to Verify | Status | Last Verified |
 |---------|-------------|---------------|--------|---------------|
-| 05.i / §164.308(b) | If the compression hook is enabled, headroom is covered by a security review and (if it processes PHI) a BAA or local-only attestation | Confirm `REPPIT_HEADROOM` is unset in PHI-handling environments unless headroom has been reviewed; headroom runs locally (no network) — verify the version in use and that its CCR original-store is encrypted/GC'd per policy | OFF by default | |
-| 04.a | Enabling the hook is a reviewed, documented decision | Verify any environment setting `REPPIT_HEADROOM=1` has sign-off and the PHI-at-rest implications of headroom's CCR store are addressed | | |
+| 05.i / §164.308(b) | If the compression hook is enabled, headroom is covered by a security review and (if it processes PHI) a BAA or local-only attestation | Confirm `LOOBSTER_HEADROOM` is unset in PHI-handling environments unless headroom has been reviewed; headroom runs locally (no network) — verify the version in use and that its CCR original-store is encrypted/GC'd per policy | OFF by default | |
+| 04.a | Enabling the hook is a reviewed, documented decision | Verify any environment setting `LOOBSTER_HEADROOM=1` has sign-off and the PHI-at-rest implications of headroom's CCR store are addressed | | |
 
 ---
 
@@ -95,16 +95,16 @@ The signals hub (`signals/*.md`, `commands/signals.md`) is a **committed, team-s
 
 ```bash
 # Check GitHub branch protection
-gh api repos/carainc/graft-md/branches/main/protection 2>&1 | jq '.required_pull_request_reviews'
+gh api repos/<owner>/<repo>/branches/main/protection 2>&1 | jq '.required_pull_request_reviews'
 
 # Check AWS security groups for public access
-aws ec2 describe-security-groups --profile cara-prod --query 'SecurityGroups[?IpPermissions[?IpRanges[?CidrIp==`0.0.0.0/0`]]].[GroupId,GroupName]' --output table
+aws ec2 describe-security-groups --profile <prod-profile> --query 'SecurityGroups[?IpPermissions[?IpRanges[?CidrIp==`0.0.0.0/0`]]].[GroupId,GroupName]' --output table
 
 # Check IAM policies for wildcards
-aws iam get-account-authorization-details --profile cara-prod --filter LocalManagedPolicy --query 'Policies[].PolicyVersionList[].Document.Statement[?Resource==`*`]' --output json | head -50
+aws iam get-account-authorization-details --profile <prod-profile> --filter LocalManagedPolicy --query 'Policies[].PolicyVersionList[].Document.Statement[?Resource==`*`]' --output json | head -50
 
 # Verify Aurora is not publicly accessible
-aws rds describe-db-instances --profile cara-prod --query 'DBInstances[].[DBInstanceIdentifier,PubliclyAccessible]' --output table
+aws rds describe-db-instances --profile <prod-profile> --query 'DBInstances[].[DBInstanceIdentifier,PubliclyAccessible]' --output table
 
 # Check BAA registry is up to date
 cat docs/BAA_REGISTRY.md

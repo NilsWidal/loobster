@@ -12,4 +12,4 @@ __pycache__/
 *.pyc
 
 # Verifiable frontend layer — local screenshots
-.reppit/screens/
+.loobster/screens/

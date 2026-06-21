@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-reppit-health Option D — headroom PostToolUse compression hook.
+loobster Option D — headroom PostToolUse compression hook.
 
 Reads a Claude Code PostToolUse hook payload on stdin and, *only when explicitly
 enabled and a local headroom install is available*, returns an `updatedToolOutput`
@@ -8,12 +8,12 @@ that pipes the tool's output through headroom's compressor before it enters the
 model's context window. In every other case it passes the output through unchanged.
 
 Design rules (see plans/autonomous-loops/00-parent-design-doc.md, slice 6):
-  - DEFAULT OFF. Does nothing unless REPPIT_HEADROOM=1.
+  - DEFAULT OFF. Does nothing unless LOOBSTER_HEADROOM=1.
   - GRACEFUL. Any missing dependency, parse error, or exception -> passthrough.
   - LOCAL ONLY. Uses headroom's local `compress` (no network); never logs or
     persists tool output itself. headroom's own CCR store (if the user enables it)
     is the user's responsibility and is PHI-at-rest — see the README PHI caveat.
-  - CHEAP. Skips small outputs (below REPPIT_HEADROOM_MIN_CHARS, default 2000).
+  - CHEAP. Skips small outputs (below LOOBSTER_HEADROOM_MIN_CHARS, default 2000).
 
 Attribution: the compression mechanism is provided by headroom
 (https://github.com/chopratejas/headroom). This hook is glue, not a reimplementation.
@@ -42,7 +42,7 @@ def _extract_text(tool_response):
 
 def main():
     # 1. Opt-in gate. Off by default.
-    if os.environ.get("REPPIT_HEADROOM") != "1":
+    if os.environ.get("LOOBSTER_HEADROOM") != "1":
         _passthrough()
 
     # 2. Read the hook payload.
@@ -58,7 +58,7 @@ def main():
 
     # 3. Skip small outputs — compression overhead isn't worth it.
     try:
-        min_chars = int(os.environ.get("REPPIT_HEADROOM_MIN_CHARS", "2000"))
+        min_chars = int(os.environ.get("LOOBSTER_HEADROOM_MIN_CHARS", "2000"))
     except ValueError:
         min_chars = 2000
     if len(text) < min_chars:
@@ -72,7 +72,7 @@ def main():
 
     # 5. Compress. Any failure -> passthrough (never break the tool flow).
     try:
-        model = os.environ.get("REPPIT_HEADROOM_MODEL", "claude-opus-4-8")
+        model = os.environ.get("LOOBSTER_HEADROOM_MODEL", "claude-opus-4-8")
         compressed = compress(text, model=model)
         if not isinstance(compressed, str) or not compressed or len(compressed) >= len(text):
             _passthrough()

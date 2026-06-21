@@ -1,6 +1,6 @@
 Perform a comprehensive review of all uncommitted changes.
 
-> **Independent review — never self-verify.** This review MUST be run by a **separate verifier subagent** (`Agent`) that did not write the code. The implementing agent does not review its own work. Spawn a judge with the diff + what to check; it returns only findings. (See the "Never self-verify" rule in `reppit.md`.)
+> **Independent review — never self-verify.** This review MUST be run by a **separate verifier subagent** (`Agent`) that did not write the code. The implementing agent does not review its own work. Spawn a judge with the diff + what to check; it returns only findings. (See the "Never self-verify" rule in `run.md`.)
 
 ## What this does
 - Gathers and reviews all uncommitted changes in the current branch
@@ -24,7 +24,7 @@ Perform a comprehensive review of all uncommitted changes.
    - GREEN — consider
 6. If Linear MCP tools are available and an issue was identified, post the review as a comment on the issue.
 7. If there are no action items, suggest the issue is ready for the next phase.
-8. If Claude Code Tasks track this work (`TaskList`), reflect the outcome: leave any task with open action items as `in_progress`, and only mark tasks `completed` once their action items are resolved. This keeps `/resume-reppit` accurate.
+8. If Claude Code Tasks track this work (`TaskList`), reflect the outcome: leave any task with open action items as `in_progress`, and only mark tasks `completed` once their action items are resolved. This keeps `/resume` accurate.
 
 ## Output template
 ```

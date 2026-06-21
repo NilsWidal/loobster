@@ -12,7 +12,7 @@ RePPIT's Secure phase is **framework-agnostic**: healthcare (HIPAA, HITRUST) is 
 Each has a checklist in `compliance/<key>-checklist.md`.
 
 ## How to configure
-Create `.claude/reppit-frameworks.json` in your **workspace** (the repo you run `/secure` in):
+Create `.claude/loobster-frameworks.json` in your **workspace** (the repo you run `/secure` in):
 
 ```json
 { "frameworks": ["soc2", "iso27001"] }
@@ -26,7 +26,7 @@ Create `.claude/reppit-frameworks.json` in your **workspace** (the repo you run 
 - **International / enterprise:** `["iso27001", "soc2"]`
 - **Everything:** `["hipaa", "hitrust", "iso27001", "soc2"]` (default)
 
-Copy one into `.claude/reppit-frameworks.json` and edit.
+Copy one into `.claude/loobster-frameworks.json` and edit.
 
 ## Per-repo checklist overrides
 You can also tailor a framework's checklist for a repo: drop `.claude/compliance/<key>-checklist.md` in your workspace and `/secure` prefers it over the plugin's built-in. (Independent of which frameworks are *enabled*.)

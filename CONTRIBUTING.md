@@ -9,13 +9,13 @@ Thanks for your interest in contributing.
   plugin.json           — plugin manifest (name, version, metadata)
   marketplace.json      — marketplace entry consumed by `/plugin marketplace add`
 commands/
-  reppit.md             — orchestrator slash command for the full workflow
-  reppit-loop.md        — /reppit-loop (goal-loop)
+  run.md             — orchestrator slash command for the full workflow
+  loop.md        — /loop (goal-loop)
   signals.md            — /signals (shared team hub)
   verify-frontend.md    — /verify-frontend (Playwright verification)
   backlog-scoring.md    — RICE scoring convention (shared)
   token-discipline.md   — token conventions (shared)
-  resume-reppit.md      — /resume-reppit
+  resume.md      — /resume
   research-codebase.md  — /research-codebase
   make-proposals.md     — /make-proposals
   make-plan.md          — /make-plan

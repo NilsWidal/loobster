@@ -1,6 +1,6 @@
 # Verifiable frontend layer → screenshots attached to the PR (TEMPLATE).
 # Copy into your repo's .github/workflows/, and copy bin/screenshot.mjs from the
-# reppit-health plugin into your repo's bin/. No external accounts: screenshots are
+# loobster plugin into your repo's bin/. No external accounts: screenshots are
 # uploaded as GitHub Actions artifacts (downloadable from the PR's Checks tab) and a
 # native PR comment (via GITHUB_TOKEN) summarizes the result + links the artifact.
 #
@@ -64,7 +64,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-screens
-          path: .reppit/screens/
+          path: .loobster/screens/
 
       - name: Comment on the PR (native, via GITHUB_TOKEN)
         if: always()
