@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2 — Autonomous mode spans the full loop (4→6)
+
+- **Fix:** autonomous mode now drives the whole **Implement → Test → Secure** loop (Phases 4–6), not just Phase 4. Previously it halted at Gate 5 ("Proceed to security check?"), so the loop only ran within implementation.
+- Autonomous mode now **auto-advances the Implement (Gate 4) and Test (Gate 5) review prompts** for every tier; the Test and Secure phases still **run and block on findings**, and the **final commit/push approval always stops** (never auto-pushes).
+- Clarified that the per-tier `--auto` policy and **autonomous mode** are orthogonal mechanisms, and removed the contradictory "autonomous still stops at Gate 5" wording across Arguments, Gate 3, Gate 4/5/6, and Rules. WARN items are now carried to the final approval rather than interrupting the loop.
+
 ## 0.3.1 — Autonomous kickoff & docs
 
 - **Explicit autonomous kickoff at Gate 3:** after the plan is approved you now choose **(a) run autonomously**, **(b) step through each sub-issue**, or **(c) make changes**. "Run autonomously" is what hands control to the workflow to drive Implement → Test → Secure on its own — resolving the previously underspecified hand-off after planning.
