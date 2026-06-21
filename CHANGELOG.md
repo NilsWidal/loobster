@@ -11,6 +11,8 @@
 - **Never self-verify (new core rule):** every verification/review/judgment step (Test, Secure, frontend verify, the loop's verify) MUST run in a **separate verifier subagent** that did not produce the work. Wired into `reppit.md`, `review-code.md`, `secure.md`, `reppit-loop.md`, `verify-frontend.md`.
 - **Verifiable frontend layer:** new `/verify-frontend` — when a change touches the UI, capture Playwright screenshots (`bin/screenshot.mjs`, blocks on 4xx/5xx or console errors) and attach them to the PR **GitHub-native, no other accounts** (Actions artifacts via `templates/playwright-verify.yml` + a native PR comment; or committed-to-branch images embedded via raw URLs). Wired into the Test phase.
 - **Loobster** 🦞 — loop + lobster mascot. Animated red ASCII via `bin/loobster.sh`; static version in the README.
+- **Rebranded to Loobster** — new ASCII "LoOBSTER" logo (lowercase-o motif), repo moving to `github.com/NilsWidal/loobster` (a GitHub transfer preserves the 23 stars + redirects), plugin/marketplace names → `loobster` / `nilswidal-loobster`, category → developer-tools. Plugin author still credits Cara.
+- **Docs site** — a team-focused static docs site in `site/` (Vercel-deployable for a shared URL); see `site/DEPLOY.md`.
 
 ## 0.5.0 — Signals hub (team coordination) + dynamic dashboard
 

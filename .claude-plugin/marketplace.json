@@ -1,16 +1,16 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "carainc-reppit-health",
+  "name": "nilswidal-loobster",
   "owner": {
-    "name": "Cara Technologies, Inc.",
-    "url": "https://caramedical.com"
+    "name": "Nils Widal",
+    "url": "https://github.com/NilsWidal"
   },
   "metadata": {
     "description": "AI-powered secure, autonomous development workflow. RePPITS methodology with configurable compliance gates — enable any of HIPAA, HITRUST, ISO 27001, SOC 2 (healthcare is one aspect)."
   },
   "plugins": [
     {
-      "name": "reppit-health",
+      "name": "loobster",
       "source": "./",
       "description": "Run /reppit for the full Research → Propose → Plan → Implement → Test → Secure workflow with healthcare compliance gates, or invoke any phase as a standalone slash command. /reppit-loop runs a continuous goal-loop over an optimizable RICE-scored backlog. /signals is a shared team hub where any loop emits observations and any loop consumes them, with a dynamic dashboard. Adaptive risk-tiered gates, a bounded autonomous fix loop, resumable Tasks (/resume-reppit), parallel sub-issues, and opt-in headroom token compression. /secure runs your enabled compliance frameworks (any of HIPAA, HITRUST, ISO 27001, SOC 2) against your diff and separates code-verifiable findings from organizational controls.",
       "author": {
@@ -18,8 +18,8 @@
         "url": "https://caramedical.com"
       },
       "license": "Apache-2.0",
-      "homepage": "https://github.com/carainc/reppit-health",
-      "category": "healthcare",
+      "homepage": "https://github.com/NilsWidal/loobster",
+      "category": "developer-tools",
       "keywords": [
         "reppit",
         "reppits",

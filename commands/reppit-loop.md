@@ -5,9 +5,9 @@ Trigger (next backlog item) → Investigate & Act → Backlog gen / Assign → R
 ```
 
 ## How to run it (so it actually loops)
-- **Invoke:** `/reppit-health:reppit-loop <goal>` (plugin commands are namespaced; the bare `/reppit-loop` won't resolve unless you alias it as a project command).
+- **Invoke:** `/loobster:reppit-loop <goal>` (plugin commands are namespaced; the bare `/reppit-loop` won't resolve unless you alias it as a project command).
 - **One invocation runs cycles back-to-back in this session** — after each Review & learn, **immediately start the next cycle without asking**, and keep going until an exit condition (below). Do not stop after one item; running many cycles is the whole point.
-- **For unattended / persistent looping** (close the laptop, overnight, CI): wrap it with a driver that re-invokes it — `/loop /reppit-health:reppit-loop <goal>`, a scheduled cloud agent, or an Agent SDK harness. The command resumes from the backlog each time. The plugin defines the behavior; the driver supplies the turns.
+- **For unattended / persistent looping** (close the laptop, overnight, CI): wrap it with a driver that re-invokes it — `/loop /loobster:reppit-loop <goal>`, a scheduled cloud agent, or an Agent SDK harness. The command resumes from the backlog each time. The plugin defines the behavior; the driver supplies the turns.
 
 ### Permissions (loop autonomy ≠ tool permissions)
 The loop suppresses *its own* questions, but **Claude Code's tool-permission prompts are a separate layer** the loop can't control. The subagents this loop spawns do **not** inherit a session's runtime `--dangerously-skip-permissions` flag — they resolve their permission mode from settings. So if `permissions.defaultMode` is `auto` or `default`, you'll be prompted per file write **even though the main session shows bypass** (auto mode's classifier independently evaluates each subagent's tool calls). To run the loop prompt-free:

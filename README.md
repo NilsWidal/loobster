@@ -1,22 +1,31 @@
-# RePPIT Health
+# Loobster
 
 ```
-     \v/             \v/
-    ( \ \           / / )
-     \ \ \   ___   / / /
-      \ \ \ (o o) / / /
-       \ '--( L )--' /
-       \\\ \|||/ ///
-        \\ )|||( //
-           (_/ \_)
-          L O O B S T E R
+██╗                 ██████╗  ██████╗  ███████╗ ████████╗ ███████╗ ██████╗
+██║                ██╔═══██╗ ██╔══██╗ ██╔════╝ ╚══██╔══╝ ██╔════╝ ██╔══██╗
+██║       ██████╗  ██║   ██║ ██████╔╝ ███████╗    ██║    █████╗   ██████╔╝
+██║      ██╔═══██╗ ██║   ██║ ██╔══██╗ ╚════██║    ██║    ██╔══╝   ██╔══██╗
+███████╗ ╚██████╔╝ ╚██████╔╝ ██████╔╝ ███████║    ██║    ███████╗ ██║  ██║
+╚══════╝  ╚═════╝   ╚═════╝  ╚═════╝  ╚══════╝    ╚═╝    ╚══════╝ ╚═╝  ╚═╝
+          a secure, autonomous RePPITS workflow for any codebase
 ```
 
-> 🦞 **Loobster** — loop + lobster. Run [`bin/loobster.sh`](bin/loobster.sh) for the animated red version.
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8957e5)
+![version](https://img.shields.io/badge/version-0.6.0-3fb950)
+![tests](https://img.shields.io/badge/tests-13%20passing-3fb950)
+![compliance](https://img.shields.io/badge/compliance-4%20frameworks-8957e5)
+![security](https://img.shields.io/badge/security-CodeQL-2ea043)
+
+**RePPITS · goal-loops · signals hub · configurable compliance · independent verification · local-first**
+
+> 🦞 **Loobster** — loop + lobster. Run [`bin/loobster.sh`](bin/loobster.sh) for the animated red version of the mascot.
+>
+> 📖 **Docs:** a team-focused docs site lives in [`site/`](site/) — open `site/index.html`, or deploy it to Vercel for a shared URL (see [`site/DEPLOY.md`](site/DEPLOY.md)).
 
 A Claude Code plugin that runs a **secure, autonomous development workflow** — with configurable compliance gates. **Healthcare (HIPAA/HITRUST) is one aspect**, alongside ISO 27001 and SOC 2; enable only the frameworks you need.
 
-**RePPIT Health** implements the **RePPITS** methodology — **R**esearch, **P**ropose, **P**lan, **I**mplement, **T**est, **S**ecure — extending the [RePPIT framework](https://themodernsoftware.dev) by [Mihail Eric](https://github.com/mihail911) (Head of AI, creator of Stanford's first AI software engineering course) with compliance gates that run against your diff before commit.
+**Loobster** implements the **RePPITS** methodology — **R**esearch, **P**ropose, **P**lan, **I**mplement, **T**est, **S**ecure — extending the [RePPIT framework](https://themodernsoftware.dev) by [Mihail Eric](https://github.com/mihail911) (Head of AI, creator of Stanford's first AI software engineering course) with compliance gates that run against your diff before commit.
 
 ## At a glance
 
@@ -156,8 +165,8 @@ flowchart LR
 In Claude Code (≥ 1.0.33):
 
 ```
-/plugin marketplace add carainc/reppit-health
-/plugin install reppit-health@carainc-reppit-health
+/plugin marketplace add NilsWidal/loobster
+/plugin install loobster@nilswidal-loobster
 ```
 
 That's it. The slash commands are immediately available.
@@ -165,14 +174,14 @@ That's it. The slash commands are immediately available.
 ### From a local clone
 
 ```bash
-git clone https://github.com/carainc/reppit-health.git
+git clone https://github.com/NilsWidal/loobster.git
 ```
 
 Then in Claude Code:
 
 ```
-/plugin marketplace add ./reppit-health
-/plugin install reppit-health@carainc-reppit-health
+/plugin marketplace add ./loobster
+/plugin install loobster@nilswidal-loobster
 ```
 
 Useful for trying changes before pushing.
@@ -234,7 +243,7 @@ If Linear is not configured, the plugin falls back to local `.md` files in `rese
 
 - **RePPIT methodology** — [Mihail Eric](https://github.com/mihail911), Head of AI, creator of [Stanford's first AI software engineering course](https://themodernsoftware.dev)
 - **Token-reduction mechanisms** — [headroom](https://github.com/chopratejas/headroom) by [Tejas Chopra](https://github.com/chopratejas), whose CCR, CacheAligner, and content-type compressors inspired the native token-discipline conventions and power the optional Option C/D integrations
-- **RePPIT Health plugin** — [Cara](https://caramedical.com)
+- **Loobster** — built by [Cara](https://caramedical.com), hosted at [github.com/NilsWidal/loobster](https://github.com/NilsWidal/loobster)
 
 ## License
 
