@@ -11,7 +11,7 @@ Nine slash commands, available in Claude Code, Cursor, and any client that suppo
 | Command | What it does |
 |---|---|
 | `/reppit <topic-or-issue>` | Run the full Research → Propose → Plan → Implement → Test → Secure workflow, with explicit approval gates between phases |
-| `/reppit-goal <goal>` | Run a continuous goal-loop: work down a prioritized backlog toward a standing goal, learning each cycle (wraps `/reppit` as its "act" step) |
+| `/reppit-loop <goal>` | Run a continuous goal-loop: work down a prioritized backlog toward a standing goal, learning each cycle (wraps `/reppit` as its "act" step) |
 | `/research-codebase` | Document the existing codebase exactly as it is today (no suggestions, no RCA) |
 | `/make-proposals` | Generate up to two solution proposals grounded in research |
 | `/make-plan` | Break the chosen proposal into ordered Linear issues (or local `plans/*.md` if Linear MCP is not configured) |
@@ -71,7 +71,7 @@ reppit-health keeps the model's working context lean in two layers:
 
 ## Goal-loop mode
 
-Where `/reppit` builds *one thing*, `/reppit-goal <goal>` pursues a *standing goal* by working down a prioritized backlog and learning each cycle. It's an **outer loop that wraps `/reppit`** as its "act" step:
+Where `/reppit` builds *one thing*, `/reppit-loop <goal>` pursues a *standing goal* by working down a prioritized backlog and learning each cycle. It's an **outer loop that wraps `/reppit`** as its "act" step:
 
 ```mermaid
 flowchart LR

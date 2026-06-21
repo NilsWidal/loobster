@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1 — Rename to /reppit-loop + make the loop concretely runnable
+
+- **Renamed `/reppit-goal` → `/reppit-loop`** (the dedicated loop command). Invoke it namespaced: **`/reppit-health:reppit-loop <goal>`** (the bare `/reppit-loop` only resolves if aliased as a project command).
+- **Made the command executable, not advisory:** it now spells out the concrete tool calls (`TaskCreate` the goal + backlog, `TaskList`→pick→`Agent`→act→`TaskUpdate`, re-score) and **runs cycles back-to-back in-session** — it no longer stops after one item. Added a clear "How to run it (so it actually loops)" section, including wrapping with `/loop` or a scheduled agent for unattended/persistent runs.
+- Goal record + learnings now persist under `plans/loop/<slug>.md`; backlog stays in Claude Code Tasks.
+
 ## 0.4.0 — Goal-loop mode (dedicated loops & goals + optimizable backlog)
 
 - **New `/reppit-goal <goal>` command:** a continuous goal-loop — Trigger (next backlog item) → Investigate & Act (runs `/reppit` in an isolated subagent) → Backlog gen/assign → Review & learn → ↺ — until the goal is met, the cycle cap is hit, or budget is exhausted. Wraps RePPITS as its "act" step; never bypasses gates/Secure; never auto-pushes; resumable from the backlog.
