@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0 — headroom on by default
+
+- **Token compression is no longer opt-in** — the headroom `PostToolUse` hook (Option D) is **enabled by default**. It compresses large read-heavy tool outputs whenever a local headroom install is importable, and is a **no-op when headroom isn't installed**. Disable with `LOOBSTER_HEADROOM=0`.
+- **PHI guardrail:** because it's now on by default, on PHI repos set `LOOBSTER_HEADROOM=0` until headroom has had a data-path review. `compliance/org-controls-audit.md` updated (status: ON by default). Tests now verify default-on + the kill switch.
+- README signals diagram label tightened so it doesn't collide with GitHub's diagram controls.
+
 ## 0.6.0 — Configurable compliance frameworks (health is one aspect) + clearer README
 
 - **Frameworks are now enable/disable** per repo via `.claude/loobster-frameworks.json` (`{ "frameworks": ["soc2","iso27001"] }`); `/secure` runs only the enabled ones, defaulting to all four when no config is present. Healthcare (HIPAA/HITRUST) is positioned as **one profile**, not a requirement. See `compliance/frameworks.md`.
