@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.3 — Single-runner lease (concurrency-safe self-driving)
+
+- **Only one loop instance runs per worktree.** The marker now carries a `runner` + `runnerHeartbeatAt` lease, refreshed each cycle. On (re)entry, a loop checks the lease first: if a live runner holds it, the re-entry (a `ScheduleWakeup`/cron firing while an in-session run is active, or a parallel headless run on a shared worktree) **backs off and exits** instead of running a concurrent cycle and colliding on git/files. Only a stale/empty lease is taken over.
+- This makes `CronCreate` safe to arm on shared worktrees (no more hand-skipping it to dodge contention). Wakeup fallback delay bumped to 1200s (cache-aware). `/loobster:loop status` now reports the runner lease.
+- Cleared on exit alongside `status: done`.
+
 ## 0.9.2 — Visible loop schedule + `status` query (ask loobster)
 
 - The loop **prints the re-entry schedule it armed** on kickoff — cron expression, human-readable cadence, job id, 7-day expiry, and how to cancel — the same way the `/loop` skill confirms its schedule. No more guessing whether self-driving is on.
