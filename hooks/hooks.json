@@ -1,6 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/hooks.schema.json",
   "_comment": "Option D — headroom token compression, ENABLED BY DEFAULT. The hook compresses large read-heavy tool outputs whenever a local headroom install is importable; set LOOBSTER_HEADROOM=0 to disable. It no-ops (passthrough) when headroom isn't installed. It compresses large read-heavy tool outputs before they enter the model context. Healthcare note: because it is on by default, tool outputs (possible PHI) flow through the compressor whenever headroom is installed — on PHI repos set LOOBSTER_HEADROOM=0 unless headroom has had a data-path review (see README). See plans/autonomous-loops/00-parent-design-doc.md (slice 6).",
+  "_comment_stop": "loop-rearm — keeps an active goal-loop (plans/loop/<slug>.md status: active) running to a real exit condition instead of stopping at a milestone. Best-effort safety net for interactive runs; honors stop_hook_active (no infinite loops) and LOOBSTER_LOOP_REARM=0; fails open. Hard crashes (API connection drop) are covered by the durable driver, not this hook.",
   "hooks": {
     "PostToolUse": [
       {
@@ -9,6 +10,16 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/bin/headroom-compress.py"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/loop-rearm.py"
           }
         ]
       }
