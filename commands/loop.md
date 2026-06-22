@@ -26,7 +26,10 @@ On invocation, **actually perform** the following (don't just describe them):
 1. Restate the goal in one line and write **free-text success criteria**. Create a goal record: `TaskCreate` a task titled `GOAL: <one-line goal>` with `metadata.kind="goal"`, `metadata.goalId="<slug>"`, the success criteria, and `metadata.maxCycles` (default 10). Also write `plans/loop/<slug>.md` with **frontmatter** (`status: active`, `goalId: <slug>`, the one-line `goal`, `cycle: 0`) followed by the success criteria + an empty learnings log. The `status: active` marker is **load-bearing**: the Stop hook (`bin/loop-rearm.py`) reads it to keep the loop running across turn boundaries — set it to `done` **only** on a real exit/escalation.
 2. **Recommend compression** (loops re-read code every cycle): tell the user "set `LOOBSTER_HEADROOM=1` to compress repeated code reads (README › Token reduction; PHI caveat applies)." Proceed regardless.
 3. **Seed the backlog:** `TaskCreate` one task per known work item, each with `metadata.goalId=<slug>` and a RICE score per `${CLAUDE_PLUGIN_ROOT}/commands/backlog-scoring.md`. For large scoped items, run `/make-plan` to decompose — its sub-tasks join the backlog.
-4. **Arm self-re-entry (this is what makes the single command self-driving).** Schedule the loop's own durable driver so you never wrap it: call `ScheduleWakeup(prompt: "/loobster:loop <goal>", delaySeconds: 90)` now, and for closed-session durability also `CronCreate` the same prompt. Record the wakeup/cron id in the marker frontmatter (`reentry: <id>`) so Exit can cancel it. (If these tools aren't available, skip — the loop still runs in-session + the Stop hook covers graceful stops.)
+4. **Arm self-re-entry and SHOW the schedule (this is what makes the single command self-driving — and visible).** Like the `/loop` skill confirms what it scheduled, this loop **prints its own re-entry settings on kickoff** so you can see exactly what's running, no separate script:
+   - If `CronCreate`/`ScheduleWakeup` are callable, arm them — `ScheduleWakeup(prompt: "/loobster:loop <goal>", delaySeconds: 90)` for in-session re-entry, plus `CronCreate` the same prompt for closed-session durability — record the id in the marker frontmatter (`reentry: <id>`), then **print the schedule**: the **cron expression**, the **human-readable cadence**, the **job/wakeup id**, that recurring crons **auto-expire after 7 days**, and **how to cancel** (`CronDelete <id>` or set `status: done`). Lead the line with **`self-driving: ARMED`**.
+   - If those tools aren't available here, print **`self-driving: UNAVAILABLE → in-session loop + Stop hook only`** and continue (re-invoke `/loobster:loop` manually, or add an external driver for crash durability).
+   - Also print a one-line **readiness** so nothing is silent: Stop-hook re-arm on/off (`LOOBSTER_LOOP_REARM`), permission mode (is it `bypassPermissions`?), headroom on/off. This is the "ask loobster" answer at kickoff — and the `status` mode below reprints it on demand.
 
 ### Self-healing — do this on every (re)entry (crash-safe resume)
 A previous run may have died mid-cycle (API drop, crash, stop). Before picking work, reconcile durable state:
@@ -50,8 +53,19 @@ A previous run may have died mid-cycle (API drop, crash, stop). Before picking w
 - **Human approval gates stay sacred.** The "never stop at a milestone" rule does **not** override the gates: if the act step reaches the **final commit/push approval**, a **sensitive Secure FAIL**, or any mandatory gate, set the marker `status: paused` (or `done`) **before** stopping so the Stop hook allows it — the loop **never** pushes past an approval or unresolved FAIL to stay alive. Resume after the human responds.
 - **Checkpoint each cycle:** update `cycle` (+ a one-line current position) in the marker before/after the act step, so a crash mid-cycle resumes precisely.
 
+## Status — ask loobster anytime
+Invoke `/loobster:loop status` (or just **ask** "what's the loop doing / what's scheduled?") and report — **without starting a cycle** — for each `plans/loop/*.md` that is `active` or `paused`:
+- **Goal**, **status** (active / paused / done), current **cycle**.
+- **Schedule:** run `CronList` and match the marker's `reentry: <id>` → show the **cron expression + cadence + 7-day expiry**, and the in-session `ScheduleWakeup` cadence. (This is "show the cron job settings", on demand.)
+- **Backlog:** `TaskList` for the `goalId` → counts (done / in-progress / open) + the next item.
+- **Readiness:** Stop-hook re-arm on/off, permission mode, headroom on/off.
+- **Controls:** stop with `status: done` in the marker (or `CronDelete <id>`, or `LOOBSTER_LOOP_REARM=0`); pause for a gate with `status: paused`.
+
+This is the single place to *see* what every loop is doing and how it's scheduled — no separate script to run.
+
 ## Arguments
-- **goal**: free-text goal + success criteria. Required.
+- **goal**: free-text goal + success criteria. Required (unless `status`).
+- **status**: report the active/paused loop(s) — schedule (cron id + cadence), backlog, readiness, and how to stop — without running a cycle.
 - **--max-cycles N**: hard cap (default 10).
 - **--budget T**: optional output-token budget; escalate when exhausted.
 
