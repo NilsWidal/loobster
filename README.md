@@ -21,7 +21,7 @@
 
 > 🦞 **Loobster** — loop + lobster. Run [`bin/loobster.sh`](bin/loobster.sh) for the animated red version of the mascot.
 >
-> 📖 **Docs:** a team-focused docs site lives in [`site/`](site/) — open `site/index.html`, or deploy it to Vercel for a shared URL (see [`site/DEPLOY.md`](site/DEPLOY.md)).
+> 📖 **Docs:** [**nilswidal.github.io/loobster**](https://nilswidal.github.io/loobster/) — a team-focused docs site (source in [`docs/`](docs/), served via GitHub Pages; see [`docs/DEPLOY.md`](docs/DEPLOY.md)).
 
 **Loobster** is a Claude Code plugin that turns AI-assisted development into a **repeatable, reviewable, secure loop**. It right-sizes each task, plans before it builds, can run autonomously between approval gates, and **proves its work with an independent verifier instead of trusting itself**. It coordinates whole teams through a shared signals hub, and runs the compliance frameworks you choose against every diff.
 
