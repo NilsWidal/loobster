@@ -1,0 +1,93 @@
+# Verifiable frontend layer → screenshots attached to the PR (TEMPLATE).
+# Copy into your repo's .github/workflows/, and copy bin/screenshot.mjs from the
+# loobster plugin into your repo's bin/. No external accounts: screenshots are
+# uploaded as GitHub Actions artifacts (downloadable from the PR's Checks tab) and a
+# native PR comment (via GITHUB_TOKEN) summarizes the result + links the artifact.
+#
+# Customize the two marked steps for your app (install + start). The screenshot step
+# exits non-zero if any page 4xx/5xx's or logs console errors, so a broken frontend
+# fails the check.
+
+name: Frontend verify (Playwright)
+
+on:
+  pull_request:
+    paths:
+      - "**/*.tsx"
+      - "**/*.jsx"
+      - "**/*.vue"
+      - "**/*.svelte"
+      - "**/*.html"
+      - "**/*.css"
+      - "**/*.scss"
+  workflow_dispatch:
+    inputs:
+      paths:
+        description: "Space-separated routes to capture"
+        default: "/"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      BASE_URL: http://localhost:3000
+      ROUTES: "/"            # <-- set the routes your PR affects, space-separated
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # --- CUSTOMIZE: install + build your app ---
+      - run: npm ci
+      - run: npm run build --if-present
+
+      - name: Install Playwright (chromium)
+        run: npm i -D playwright && npx playwright install --with-deps chromium
+
+      # --- CUSTOMIZE: start your app, then wait for it ---
+      - name: Start app
+        run: |
+          (npm run start &) || (npm run dev &)
+          npx --yes wait-on "$BASE_URL" --timeout 120000
+
+      - name: Capture screenshots
+        id: shots
+        run: node bin/screenshot.mjs --base "$BASE_URL" --paths $ROUTES | tee shots.log
+
+      - name: Upload screenshots (artifact — no external account)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-screens
+          path: .loobster/screens/
+
+      - name: Comment on the PR (native, via GITHUB_TOKEN)
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const log = fs.existsSync('shots.log') ? fs.readFileSync('shots.log','utf8') : '(no output)';
+            const ok = '${{ steps.shots.outcome }}' === 'success';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              `### 🦞 Frontend verify ${ok ? '✅' : '❌'}`,
+              ``,
+              `Screenshots are attached as the **frontend-screens** artifact on [this run](${runUrl}) (Checks tab → Artifacts).`,
+              ``,
+              '```',
+              log.trim().slice(0, 3000),
+              '```',
+            ].join('\n');
+            const { data: comments } = await github.rest.issues.listComments(
+              { owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number });
+            const mine = comments.find(c => c.body.includes('🦞 Frontend verify'));
+            if (mine) await github.rest.issues.updateComment(
+              { owner: context.repo.owner, repo: context.repo.repo, comment_id: mine.id, body });
+            else await github.rest.issues.createComment(
+              { owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body });

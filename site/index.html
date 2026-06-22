@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loobster — docs</title>
+<meta name="description" content="Loobster: AI that plans, builds, verifies and secures every change — solo or team. How teams use it efficiently.">
+<style>
+  :root{--bg:#0d1117;--panel:#161b22;--panel2:#1c2330;--line:#30363d;--text:#e6edf3;--muted:#9aa7b4;
+    --blue:#1f6feb;--purple:#8957e5;--green:#238636;--amber:#d4a72c;--red:#da3633}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  a{color:var(--blue);text-decoration:none} a:hover{text-decoration:underline}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  nav{position:sticky;top:0;background:rgba(13,17,23,.85);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);z-index:10}
+  nav .wrap{display:flex;gap:20px;align-items:center;height:56px;font-size:14px}
+  nav b{font-size:16px} nav a{color:var(--muted)} nav a:hover{color:var(--text);text-decoration:none}
+  nav .sp{flex:1}
+  .hero{text-align:center;padding:56px 0 36px;border-bottom:1px solid var(--line)}
+  pre.logo{display:inline-block;text-align:left;color:var(--red);font-size:11px;line-height:1.15;margin:0 0 6px;overflow:auto;max-width:100%}
+  .hero p.tag{color:var(--muted);font-size:18px;margin:6px 0 18px}
+  .badges img{height:20px;margin:0 3px;vertical-align:middle}
+  .cta{margin-top:22px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .btn{display:inline-block;padding:9px 18px;border-radius:8px;font-weight:600;font-size:14px}
+  .btn.p{background:var(--blue);color:#fff} .btn.s{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+  .btn:hover{text-decoration:none;filter:brightness(1.1)}
+  code{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:14px}
+  pre.cmd{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow:auto;font-size:14px}
+  h2{font-size:25px;margin:54px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  h3{font-size:18px;margin:26px 0 8px}
+  section{scroll-margin-top:70px}
+  .lead{color:var(--muted);font-size:17px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px}
+  .card h3{margin-top:0}
+  .card .ico{font-size:22px}
+  .pill{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--muted);margin:0 4px 4px 0}
+  table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+  th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:var(--muted)}
+  .benefit{border-left:3px solid var(--green);background:rgba(35,134,54,.08);padding:10px 16px;border-radius:0 8px 8px 0;margin:10px 0}
+  footer{margin:70px 0 50px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:14px;text-align:center}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <b>🦞 Loobster</b>
+  <a href="#teams">For teams</a>
+  <a href="#how">How it works</a>
+  <a href="#commands">Commands</a>
+  <a href="#start">Quickstart</a>
+  <span class="sp"></span>
+  <a href="https://github.com/NilsWidal/loobster">GitHub ↗</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+<pre class="logo">
+██╗                 ██████╗  ██████╗  ███████╗ ████████╗ ███████╗ ██████╗
+██║                ██╔═══██╗ ██╔══██╗ ██╔════╝ ╚══██╔══╝ ██╔════╝ ██╔══██╗
+██║       ██████╗  ██║   ██║ ██████╔╝ ███████╗    ██║    █████╗   ██████╔╝
+██║      ██╔═══██╗ ██║   ██║ ██╔══██╗ ╚════██║    ██║    ██╔══╝   ██╔══██╗
+███████╗ ╚██████╔╝ ╚██████╔╝ ██████╔╝ ███████║    ██║    ███████╗ ██║  ██║
+╚══════╝  ╚═════╝   ╚═════╝  ╚═════╝  ╚══════╝    ╚═╝    ╚══════╝ ╚═╝  ╚═╝
+</pre>
+  <p class="tag">AI that plans, builds, verifies &amp; secures every change — solo or team</p>
+  <p class="badges">
+    <img alt="license" src="https://img.shields.io/badge/license-Apache%202.0-blue.svg">
+    <img alt="plugin" src="https://img.shields.io/badge/Claude%20Code-plugin-8957e5">
+    <img alt="compliance" src="https://img.shields.io/badge/compliance-4%20frameworks-8957e5">
+    <img alt="verify" src="https://img.shields.io/badge/verify-independent-2ea043">
+  </p>
+  <div class="cta">
+    <a class="btn p" href="#start">Quickstart</a>
+    <a class="btn s" href="#teams">Why teams use it</a>
+  </div>
+</div></header>
+
+<main class="wrap">
+
+<section id="what">
+  <h2>What is Loobster?</h2>
+  <p class="lead">Loobster (loop + lobster 🦞) is a Claude Code plugin that turns AI-assisted development into a <b>repeatable, reviewable, secure loop</b> — the RePPITS methodology: <b>R</b>esearch → <b>P</b>ropose → <b>P</b>lan → <b>I</b>mplement → <b>T</b>est → <b>S</b>ecure. It right-sizes each task, can run autonomously between gates, and proves its work instead of trusting itself.</p>
+  <p>It's markdown-and-conventions — no servers, no lock-in. Healthcare compliance is <i>one</i> aspect (HIPAA/HITRUST), alongside ISO 27001 and SOC 2 — enable only what your repo needs.</p>
+</section>
+
+<section id="teams">
+  <h2>For teams — how a team benefits</h2>
+  <p class="lead">Loobster is built for <b>multiple people (and their agents) working on one codebase</b>. The hard part of team AI-dev isn't writing code — it's coordination and trust. Loobster makes both first-class.</p>
+
+  <div class="grid">
+    <div class="card">
+      <div class="ico">📡</div>
+      <h3>A shared signals hub</h3>
+      <p>Every loop, agent, or teammate drops observations (frictions / opportunities / facts) into one committed <code>signals/</code> store. Anyone's loop reads the relevant ones.</p>
+      <div class="benefit"><b>Benefit:</b> an insight one person's support loop finds (“5 users can't find export”) automatically reaches another person's product loop — without a meeting.</div>
+      <p><span class="pill">author attribution</span><span class="pill">file-per-signal = merge-safe</span><span class="pill">live dashboard</span></p>
+    </div>
+    <div class="card">
+      <div class="ico">🔬</div>
+      <h3>Never self-verify</h3>
+      <p>Every Test / Secure / frontend / loop check runs in a <b>separate verifier agent</b> that did not write the code. The implementer never grades its own work.</p>
+      <div class="benefit"><b>Benefit:</b> reviews you can trust at scale — an unattended loop can't rubber-stamp itself, so the team can let it run.</div>
+    </div>
+    <div class="card">
+      <div class="ico">📊</div>
+      <h3>Team status board</h3>
+      <p><code>bin/signals-build.py</code> renders <code>signals/</code> into a dynamic dashboard (by status / author / loop / type). Publish it to a shared URL via GitHub Pages — no other accounts.</p>
+      <div class="benefit"><b>Benefit:</b> one glance shows what every loop and teammate is seeing across the codebase.</div>
+    </div>
+    <div class="card">
+      <div class="ico">🖼️</div>
+      <h3>Verifiable frontend on every PR</h3>
+      <p>Touch the UI and Loobster captures Playwright screenshots and attaches them to the PR (GitHub Actions artifacts + a native comment — no Imgur/S3).</p>
+      <div class="benefit"><b>Benefit:</b> reviewers see the change rendered, not just “tests pass” — faster, safer approvals.</div>
+    </div>
+    <div class="card">
+      <div class="ico">🎯</div>
+      <h3>Goal-loops over a backlog</h3>
+      <p><code>/loop</code> pursues a standing goal by working a RICE-scored backlog cycle after cycle, resumable across sessions and people.</p>
+      <div class="benefit"><b>Benefit:</b> a goal like “fix all P0/P1 in the epic as PRs to staging” keeps progressing even as people hand off.</div>
+    </div>
+    <div class="card">
+      <div class="ico">🛡️</div>
+      <h3>Compliance your team chooses</h3>
+      <p>Per-repo <code>.claude/loobster-frameworks.json</code> enables any of HIPAA · HITRUST · ISO 27001 · SOC 2. Sensitive changes never auto-advance; Secure always runs.</p>
+      <div class="benefit"><b>Benefit:</b> the same workflow fits a healthcare repo and a general SaaS repo — no separate tooling.</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:28px">A typical team rhythm</h3>
+  <ol>
+    <li>Each person runs loops (support, SEO, product, …) that <b>emit signals</b> to the shared hub.</li>
+    <li>A goal-loop <b>consumes</b> the highest-value signals → spawns scored backlog tasks → ships PRs.</li>
+    <li>Every change is <b>independently verified</b> (Test/Secure by a separate agent; UI by Playwright on the PR).</li>
+    <li>The <b>dashboard</b> (local or on Pages) keeps everyone aligned on what's happening.</li>
+  </ol>
+</section>
+
+<section id="how">
+  <h2>How it works</h2>
+  <table>
+    <tr><th>Layer</th><th>What it does</th></tr>
+    <tr><td><b>RePPITS</b> (<code>/run</code>)</td><td>The gated workflow. Phase 0 right-sizes the task; sensitive changes keep every gate; Secure always runs.</td></tr>
+    <tr><td><b>Autonomous mode</b></td><td>At the plan gate, “run autonomously” drives Implement→Test→Secure itself (bounded loop, cap 3, escalates) — stops only at the final commit/push.</td></tr>
+    <tr><td><b>Goal-loop</b> (<code>/loop</code>)</td><td>Outer loop over a prioritized backlog toward a standing goal; consumes + emits signals each cycle.</td></tr>
+    <tr><td><b>Signals</b> (<code>/signals</code>)</td><td>The shared team hub. Non-PHI summaries only (the rule that lets it be committed + shared).</td></tr>
+    <tr><td><b>Verify</b> (<code>/verify-frontend</code>, Test, Secure)</td><td>Independent verification — a separate agent, never the author. Frontend proven with screenshots.</td></tr>
+    <tr><td><b>Token discipline</b></td><td>Subagent isolation + artifact compaction keep context lean; optional headroom compression for heavy loops.</td></tr>
+  </table>
+</section>
+
+<section id="commands">
+  <h2>Commands</h2>
+  <table>
+    <tr><th>Command</th><th>Does</th></tr>
+    <tr><td><code>/run &lt;topic&gt;</code></td><td>Full Research→Propose→Plan→Implement→Test→Secure, gated</td></tr>
+    <tr><td><code>/loop &lt;goal&gt;</code></td><td>Continuous goal-loop over a RICE-scored backlog</td></tr>
+    <tr><td><code>/signals</code></td><td>Shared team hub: emit / consume observations</td></tr>
+    <tr><td><code>/verify-frontend</code></td><td>Playwright screenshots attached to the PR</td></tr>
+    <tr><td><code>/secure</code></td><td>Run your enabled compliance frameworks against the diff</td></tr>
+    <tr><td><code>/resume</code></td><td>Rebuild + continue a crashed workflow from Tasks</td></tr>
+    <tr><td colspan="2" style="color:var(--muted)">…plus /research-codebase, /make-proposals, /make-plan, /implement, /review-code</td></tr>
+  </table>
+</section>
+
+<section id="start">
+  <h2>Quickstart</h2>
+  <p>In Claude Code (or any plugin-spec client):</p>
+  <pre class="cmd">/plugin marketplace add NilsWidal/loobster
+/plugin install loobster@nilswidal-loobster</pre>
+  <p>Then, in any repo:</p>
+  <pre class="cmd"># build one thing, gated
+/loobster:run Add a patient intake form
+
+# pursue a standing goal autonomously
+/loobster:loop fix all P0/P1 in the epic as PRs to staging
+
+# pick your compliance frameworks (.claude/loobster-frameworks.json)
+{ "frameworks": ["soc2", "iso27001"] }</pre>
+  <p class="lead">See the full <a href="https://github.com/NilsWidal/loobster#readme">README</a> for every feature.</p>
+</section>
+
+</main>
+
+<footer><div class="wrap">
+  🦞 Loobster — by <a href="https://github.com/NilsWidal">Nils Widal</a> ·
+  <a href="https://github.com/NilsWidal/loobster">github.com/NilsWidal/loobster</a> · Apache 2.0
+</div></footer>
+
+</body>
+</html>

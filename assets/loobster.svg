@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="196" viewBox="0 0 720 196" role="img" aria-label="Loobster">
+  <rect x="0.5" y="0.5" width="719" height="195" rx="12" fill="#0d1117" stroke="#30363d"/>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" fill="#f85149" xml:space="preserve">
+    <text x="26" y="36">██╗                 ██████╗  ██████╗  ███████╗ ████████╗ ███████╗ ██████╗</text>
+    <text x="26" y="56">██║                ██╔═══██╗ ██╔══██╗ ██╔════╝ ╚══██╔══╝ ██╔════╝ ██╔══██╗</text>
+    <text x="26" y="76">██║       ██████╗  ██║   ██║ ██████╔╝ ███████╗    ██║    █████╗   ██████╔╝</text>
+    <text x="26" y="96">██║      ██╔═══██╗ ██║   ██║ ██╔══██╗ ╚════██║    ██║    ██╔══╝   ██╔══██╗</text>
+    <text x="26" y="116">███████╗ ╚██████╔╝ ╚██████╔╝ ██████╔╝ ███████║    ██║    ███████╗ ██║  ██║</text>
+    <text x="26" y="136">╚══════╝  ╚═════╝   ╚═════╝  ╚═════╝  ╚══════╝    ╚═╝    ╚══════╝ ╚═╝  ╚═╝</text>
+  </g>
+  <text x="360" y="172" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#9aa7b4">AI that plans, builds, verifies &amp; secures every change — solo or team</text>
+</svg>

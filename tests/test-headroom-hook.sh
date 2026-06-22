@@ -24,19 +24,19 @@ assert_empty() {
   fi
 }
 
-# 1. Default OFF -> passthrough (no REPPIT_HEADROOM).
+# 1. Default OFF -> passthrough (no LOOBSTER_HEADROOM).
 assert_empty "default off -> passthrough"
 
 # 2. Enabled but headroom not importable -> passthrough.
-assert_empty "enabled + headroom absent -> passthrough" REPPIT_HEADROOM=1
+assert_empty "enabled + headroom absent -> passthrough" LOOBSTER_HEADROOM=1
 
 # 3. Malformed stdin -> passthrough.
-out="$(echo 'not json' | REPPIT_HEADROOM=1 "$HOOK")"; rc=$?
+out="$(echo 'not json' | LOOBSTER_HEADROOM=1 "$HOOK")"; rc=$?
 if [ -z "$out" ] && [ "$rc" -eq 0 ]; then echo "PASS: malformed stdin -> passthrough"; PASS=$((PASS+1)); else echo "FAIL: malformed stdin (rc=$rc)"; FAIL=$((FAIL+1)); fi
 
 # 4. Output below size threshold -> passthrough.
 small='{"tool_name":"Read","tool_response":{"output":"tiny"}}'
-out="$(echo "$small" | REPPIT_HEADROOM=1 "$HOOK")"; rc=$?
+out="$(echo "$small" | LOOBSTER_HEADROOM=1 "$HOOK")"; rc=$?
 if [ -z "$out" ] && [ "$rc" -eq 0 ]; then echo "PASS: below threshold -> passthrough"; PASS=$((PASS+1)); else echo "FAIL: below threshold (rc=$rc)"; FAIL=$((FAIL+1)); fi
 
 # 5. Happy path: enabled + a mock headroom module that compresses -> emits updatedToolOutput.
@@ -45,7 +45,7 @@ cat > "$tmp/headroom.py" <<'PY'
 def compress(text, model=None):
     return "COMPRESSED:" + str(len(text))
 PY
-out="$(echo "$payload" | env REPPIT_HEADROOM=1 PYTHONPATH="$tmp" "$HOOK")"; rc=$?
+out="$(echo "$payload" | env LOOBSTER_HEADROOM=1 PYTHONPATH="$tmp" "$HOOK")"; rc=$?
 if [ "$rc" -eq 0 ] && echo "$out" | grep -q '"updatedToolOutput"' && echo "$out" | grep -q 'COMPRESSED:'; then
   echo "PASS: enabled + mock headroom -> updatedToolOutput"; PASS=$((PASS+1))
 else

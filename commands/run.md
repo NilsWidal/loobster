@@ -82,7 +82,7 @@ For each sub-issue:
 1. Follow `${CLAUDE_PLUGIN_ROOT}/commands/implement.md` for the sub-issue, running it in the **built-in bounded loop** — iterate implement→test until the sub-issue's acceptance criteria and tests pass, **or** the cap (3) is reached, then **escalate** (stop and summarize what's blocking). This is the same bounded-loop mechanism the Secure phase uses (Phase 6); no external plugin is required.
 2. Then continue according to the mode chosen at Gate 3:
    - **Review mode (step through):** stop at **Gate 4** for this sub-issue before continuing.
-   - **Autonomous mode:** do **not** stop — commit the sub-issue, `TaskUpdate` it to `completed`, and continue straight to the next available sub-issue. Once all sub-issues are done, **continue automatically into Phase 5 (Test) and Phase 6 (Secure) without stopping at Gate 4 or Gate 5** — autonomous mode drives the whole Implement → Test → Secure loop (the bounded convergence loop in Phase 6), not just Phase 4. It pauses only to **escalate** a stuck loop (cap reached), or at the **final commit/push approval** (the end of Gate 6). Externalize each sub-issue's outcome to its Task so `/resume-reppit` can continue if the session ends.
+   - **Autonomous mode:** do **not** stop — commit the sub-issue, `TaskUpdate` it to `completed`, and continue straight to the next available sub-issue. Once all sub-issues are done, **continue automatically into Phase 5 (Test) and Phase 6 (Secure) without stopping at Gate 4 or Gate 5** — autonomous mode drives the whole Implement → Test → Secure loop (the bounded convergence loop in Phase 6), not just Phase 4. It pauses only to **escalate** a stuck loop (cap reached), or at the **final commit/push approval** (the end of Gate 6). Externalize each sub-issue's outcome to its Task so `/resume` can continue if the session ends.
 
 > **Autonomous flow, in one line:** Gate 3 "Run autonomously" → implement all sub-issues → Test → Secure, looping Implement→Test→Secure on any FAIL (cap 3) — **no stops at Gates 4 or 5** — halting only on escalation or the final "ready to commit & push?" approval. The Test and Secure phases always **run** and still **block on findings**; only the intermediate "shall I proceed?" prompts auto-advance.
 
@@ -103,7 +103,7 @@ After all sub-issues are implemented, follow `${CLAUDE_PLUGIN_ROOT}/commands/rev
 
 ## Phase 6 — Secure
 
-Follow `${CLAUDE_PLUGIN_ROOT}/commands/secure.md` to run HIPAA/SOC2/HITRUST security checks against all changes.
+Follow `${CLAUDE_PLUGIN_ROOT}/commands/secure.md` to run security checks against all changes, for the **enabled frameworks** (any of HIPAA, HITRUST, ISO 27001, SOC 2 — configured via `.claude/loobster-frameworks.json`; see `${CLAUDE_PLUGIN_ROOT}/compliance/frameworks.md`).
 
 **Gate 6 — Security Review:**
 - If there are FAIL items, run the **bounded autonomous convergence loop** (no gate between iterations — this is the one place the workflow self-drives):
@@ -120,10 +120,10 @@ Follow `${CLAUDE_PLUGIN_ROOT}/commands/secure.md` to run HIPAA/SOC2/HITRUST secu
 
 ## Running unattended
 
-Autonomous mode (chosen at Gate 3) means the workflow stops *asking* between sub-issues — but the turns still come from whatever is **driving** the session. reppit-health is a set of instructions; it does not spawn its own process. So:
+Autonomous mode (chosen at Gate 3) means the workflow stops *asking* between sub-issues — but the turns still come from whatever is **driving** the session. Loobster is a set of instructions; it does not spawn its own process. So:
 
 - **Interactive Claude Code (the common case):** autonomous mode runs hands-off *within the open session* — you aren't prompted between sub-issues, but the session must stay open and the agent keeps taking turns until it reaches the next gate.
-- **Truly unattended (closed laptop, overnight, CI):** drive `/reppit … --autonomous` with an external runner that re-invokes the model — `/loop`, a scheduled cloud agent, or an Agent SDK harness. The plugin defines the *behavior*; the runner supplies the *turns*.
+- **Truly unattended (closed laptop, overnight, CI):** drive `/run … --autonomous` with an external runner that re-invokes the model — `/loop`, a scheduled cloud agent, or an Agent SDK harness. The plugin defines the *behavior*; the runner supplies the *turns*.
 
 In every case the per-sub-issue bounded loop (cap 3 → escalate) and the mandatory Secure gate bound how far the workflow can go without a human.
 
@@ -132,6 +132,7 @@ In every case the per-sub-issue bounded loop (cap 3 → escalate) and the mandat
 - **Autonomous mode** is chosen at Gate 3 (or pre-selected with `--autonomous`). It skips the Implement (Gate 4) and Test (Gate 5) review prompts so the workflow self-drives the whole **Implement → Test → Secure** loop (Phases 4–6) — not just Phase 4. Test and Secure still run and block on findings; the only stops are an escalated stuck loop (cap 3) and the **final commit/push approval**, which never auto-advances in any mode. See "Running unattended" for how turns are supplied.
 - The Phase 6 convergence loop self-drives between iterations, bounded (cap 3) and escalating to the user — it never bypasses Gate 6's final approval.
 - **At every active gate**, before asking the user a question, run `afplay /System/Library/Sounds/Glass.aiff &` to play a notification sound so the user knows input is needed.
+- **Never self-verify.** Every verification, review, or judgment step — Test (Phase 5), Secure (Phase 6), frontend verify, and the loop's verify — MUST run in a **separate verifier subagent** (`Agent`) that did **not** produce the work under review. The agent that wrote the code never reviews its own output; spin up an independent judge that gets the diff + criteria and returns only its verdict/findings. This holds in every mode, including autonomous (independence is exactly what keeps an unattended loop honest). If subagents are unavailable, say so and treat the verification as provisional pending an independent reviewer.
 - Apply the token-discipline conventions in `${CLAUDE_PLUGIN_ROOT}/commands/token-discipline.md` throughout: delegate heavy reads to subagents and forward only conclusions, pass artifact summaries between phases (re-reading files on demand), and keep stable context stable.
 - Keep all context between phases — don't re-read files you already have in context.
 - If the user says "stop" or "pause" at any point, halt and summarize current state.

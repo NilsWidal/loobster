@@ -1,6 +1,6 @@
 # Backlog scoring — sophisticated, model-set prioritization
 
-How the goal-loop (`/reppit-loop`) and `/make-plan` score and re-score backlog items so the loop always works the highest-leverage task. Scores live in each Claude Code Task's `metadata` (the backlog source of truth).
+How the goal-loop (`/loop`) and `/make-plan` score and re-score backlog items so the loop always works the highest-leverage task. Scores live in each Claude Code Task's `metadata` (the backlog source of truth).
 
 ## Model: RICE
 For each backlog item the model estimates four factors and computes a score:
