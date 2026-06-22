@@ -2,13 +2,12 @@
 """
 loobster Option D — headroom PostToolUse compression hook.
 
-Reads a Claude Code PostToolUse hook payload on stdin and, *only when explicitly
-enabled and a local headroom install is available*, returns an `updatedToolOutput`
+Reads a Claude Code PostToolUse hook payload on stdin and, *by default (set LOOBSTER_HEADROOM=0 to disable) when a local headroom install is available*, returns an `updatedToolOutput`
 that pipes the tool's output through headroom's compressor before it enters the
 model's context window. In every other case it passes the output through unchanged.
 
 Design rules (see plans/autonomous-loops/00-parent-design-doc.md, slice 6):
-  - DEFAULT OFF. Does nothing unless LOOBSTER_HEADROOM=1.
+  - ENABLED by default. Set LOOBSTER_HEADROOM=0 to disable (e.g. on PHI repos until reviewed).
   - GRACEFUL. Any missing dependency, parse error, or exception -> passthrough.
   - LOCAL ONLY. Uses headroom's local `compress` (no network); never logs or
     persists tool output itself. headroom's own CCR store (if the user enables it)
@@ -41,8 +40,8 @@ def _extract_text(tool_response):
 
 
 def main():
-    # 1. Opt-in gate. Off by default.
-    if os.environ.get("LOOBSTER_HEADROOM") != "1":
+    # 1. Enabled by default; LOOBSTER_HEADROOM=0 disables (e.g. PHI repos pre-review).
+    if os.environ.get("LOOBSTER_HEADROOM", "1") in ("0", "false", "off"):
         _passthrough()
 
     # 2. Read the hook payload.

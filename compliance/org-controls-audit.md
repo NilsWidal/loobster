@@ -61,14 +61,14 @@ These controls **cannot be verified from code diffs**. They require manual verif
 
 ---
 
-## Optional token-compression hook (Option D) — data-path control
+## Token-compression hook (Option D, on by default) — data-path control
 
-loobster ships an **opt-in, default-OFF** token-compression hook (`hooks/hooks.json` → `bin/headroom-compress.py`) that routes large tool outputs through a locally-installed [headroom](https://github.com/chopratejas/headroom) before they reach the model. **Enabling it (`LOOBSTER_HEADROOM=1`) places a third-party compressor in the PHI data path** and must be treated as an organizational control.
+Loobster ships a token-compression hook (`hooks/hooks.json` → `bin/headroom-compress.py`) that is **enabled by default** and routes large tool outputs through a locally-installed [headroom](https://github.com/chopratejas/headroom) before they reach the model. **Because it is on by default, a third-party compressor is in the PHI data path whenever headroom is installed** — this must be treated as an organizational control. On PHI repos, **set `LOOBSTER_HEADROOM=0` until headroom has had a data-path review** (it is a no-op if headroom is not installed).
 
 | Control | Requirement | How to Verify | Status | Last Verified |
 |---------|-------------|---------------|--------|---------------|
-| 05.i / §164.308(b) | If the compression hook is enabled, headroom is covered by a security review and (if it processes PHI) a BAA or local-only attestation | Confirm `LOOBSTER_HEADROOM` is unset in PHI-handling environments unless headroom has been reviewed; headroom runs locally (no network) — verify the version in use and that its CCR original-store is encrypted/GC'd per policy | OFF by default | |
-| 04.a | Enabling the hook is a reviewed, documented decision | Verify any environment setting `LOOBSTER_HEADROOM=1` has sign-off and the PHI-at-rest implications of headroom's CCR store are addressed | | |
+| 05.i / §164.308(b) | The default-on compression hook is covered by a security review and (if it processes PHI) a BAA or local-only attestation | In PHI environments, set `LOOBSTER_HEADROOM=0` unless headroom is reviewed; headroom runs locally (no network) — verify the version in use and that its CCR original-store is encrypted/GC'd per policy | ON by default | |
+| 04.a | Running the default-on hook on PHI is a reviewed, documented decision | Verify the PHI-at-rest implications of headroom's CCR store are addressed, or that `LOOBSTER_HEADROOM=0` is set on PHI repos | | |
 
 ---
 
