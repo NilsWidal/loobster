@@ -12,8 +12,8 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 ![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8957e5)
-![version](https://img.shields.io/badge/version-0.7.0-3fb950)
-![tests](https://img.shields.io/badge/tests-13%20passing-3fb950)
+![version](https://img.shields.io/badge/version-0.8.0-3fb950)
+![tests](https://img.shields.io/badge/tests-18%20passing-3fb950)
 ![compliance](https://img.shields.io/badge/compliance-4%20frameworks-8957e5)
 ![security](https://img.shields.io/badge/security-CodeQL-2ea043)
 
@@ -26,6 +26,19 @@
 **Loobster** is a Claude Code plugin that turns AI-assisted development into a **repeatable, reviewable, secure loop**. It right-sizes each task, plans before it builds, can run autonomously between approval gates, and **proves its work with an independent verifier instead of trusting itself**. It coordinates whole teams through a shared signals hub, and runs the compliance frameworks you choose against every diff.
 
 Under the hood it follows the **RePPITS** method — Research, Propose, Plan, Implement, Test, Secure — created by [Mihail Eric](https://github.com/mihail911) ([the RePPIT framework](https://themodernsoftware.dev), from the creator of Stanford's first AI software engineering course). Healthcare (HIPAA/HITRUST) is one aspect, alongside ISO 27001 and SOC 2 — enable only what your repo needs.
+
+## Why loop engineering
+
+AI-assisted development is shifting from one-shot prompts to **durable, autonomous loops** — the *loop*, not the prompt, is becoming the unit of work. An agent that plans, builds, tests, and retries against a goal does far more than one that answers once. The catch: **an unsupervised loop is only as trustworthy as its guardrails.** Left alone, a loop will happily rubber-stamp its own output, drift from scope, or burn the context window.
+
+**Loobster is the harness that makes a loop safe to let run:**
+- **Risk-tiered gates** — friction scales with blast radius; sensitive changes never auto-advance.
+- **Bounded convergence** — the Implement→Test→Secure fix loop caps at 3 iterations, then escalates to a human (no infinite loops, no silent commits past failures).
+- **Never self-verify** — every check runs in a *separate* verifier agent, so a loop can't grade its own work.
+- **Signals** — independent loops (and people) coordinate through a shared, mergeable channel.
+- **Compliance + token discipline** — gates run against the diff; context stays lean enough that long loops stay affordable.
+
+It stands on two foundations: **[RePPIT](https://themodernsoftware.dev)** (Mihail Eric) gives the phase structure a loop iterates over, and **[headroom](https://github.com/chopratejas/headroom)** (Tejas Chopra) gives the token economics that make long loops viable. Loobster wires both into the agent's control loop.
 
 ## At a glance
 
@@ -41,7 +54,7 @@ Under the hood it follows the **RePPITS** method — Research, Propose, Plan, Im
 
 ## What you get
 
-Eleven slash commands, available in Claude Code, Cursor, and any client that supports the Claude Code plugin spec:
+Eleven slash commands, available in Claude Code, Cursor, **Codex**, and any client that supports the Claude Code plugin spec or the `AGENTS.md` / `.agents/skills` convention:
 
 | Command | What it does |
 |---|---|
@@ -157,6 +170,22 @@ flowchart LR
 - **Dynamic dashboard** — `bin/signals-build.py` regenerates `signals/{data.js,data.json,INDEX.md}`; open `templates/signals-dashboard.html` for a live team-status board (group by status / author / loop / type; auto-refresh).
 - **Optional GitHub Pages** — `templates/signals-pages.yml` publishes the dashboard to a shared team URL, updated on each push. **Private repo / non-PHI only** (a public Pages site would expose your signals) — see `compliance/org-controls-audit.md`.
 - **Signals are upstream of the backlog** — consuming a signal can spawn a RICE-scored `/loop` task.
+
+## Use with Codex
+
+Loobster isn't Claude-Code-only. The same workflow ships in two cross-tool formats, generated from the canonical `commands/*.md`:
+
+- **[`AGENTS.md`](AGENTS.md)** — the methodology + non-negotiable rules, read automatically by **Codex** (and any `AGENTS.md`-aware agent) from the repo root.
+- **[`.agents/skills/`](.agents/skills/)** — each command as a Codex **skill** (`<name>/SKILL.md`), invoked with `/skills` / `$run` or implicitly. (Codex deprecated custom prompts in favor of skills; these are the skills.)
+
+```bash
+# from a repo that has Loobster's AGENTS.md + .agents/skills/ present:
+codex            # then:  $run <task>   ·   $loop <goal>   ·   $secure
+```
+
+**headroom on Codex:** Codex has no PostToolUse hook, so use headroom's **proxy/middleware (Option C)** — run `headroom proxy` and point Codex's model base URL at it. (The bundled Option-D hook is Claude-Code-specific.)
+
+Regenerate the skills after editing a command: `python3 bin/build-codex-skills.py` (`--check` in CI flags drift).
 
 ## Install
 
