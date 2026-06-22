@@ -35,6 +35,11 @@ d="$(mk done)"
 out="$(echo "{\"cwd\":\"$d\"}" | "$HOOK")"
 { ! blocks "$out"; } && ok "status:done -> allow" || no "done allow" "$out"; rmtree "$d"
 
+# 4b. status: paused (awaiting a human approval gate) -> allow stop (gates stay sacred).
+d="$(mk paused)"
+out="$(echo "{\"cwd\":\"$d\"}" | "$HOOK")"
+{ ! blocks "$out"; } && ok "status:paused -> allow (approval gate sacred)" || no "paused allow" "$out"; rmtree "$d"
+
 # 5. Kill switch LOOBSTER_LOOP_REARM=0 -> allow even when active.
 d="$(mk active)"
 out="$(echo "{\"cwd\":\"$d\"}" | LOOBSTER_LOOP_REARM=0 "$HOOK")"

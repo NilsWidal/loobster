@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.1 — Self-driving loops (no wrapper needed)
+
+- `/loobster:loop <goal>` now **arms its own durable re-entry** — a `ScheduleWakeup` (in-session) plus an optional `CronCreate` (closed-session) that re-invoke the command itself. You no longer wrap it in the `/loop` scheduler; the single command survives a dead turn and resumes from its checkpoint. The driver is recorded in the marker (`reentry: <id>`) and cancelled on exit/escalation.
+- Re-entry respects the marker `status`: a fired wakeup on a `paused` (approval-gate) or `done` loop is a **no-op**, so self-driving never auto-drives past a human gate. Added a `status: paused -> allow` test to the Stop-hook suite (25 total).
+
 ## 0.9.0 — Self-healing loops (crash-safe, no milestone pauses)
 
 - **A dead turn no longer kills a goal-loop.** Each in-progress task is heartbeated (`metadata.startedAt`/`heartbeatAt`) and every cycle checkpoints to `plans/loop/<slug>.md`. On re-entry the loop **reclaims any stale `in_progress` task** (interrupted, not running), checks what already landed, and continues idempotently — fixing the "M19 stranded in_progress after a connection drop" case. `/resume` is now goal-loop-aware and continues the loop rather than treating it as a one-shot.
