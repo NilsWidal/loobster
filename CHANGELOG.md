@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.0 — Self-healing loops (crash-safe, no milestone pauses)
+
+- **A dead turn no longer kills a goal-loop.** Each in-progress task is heartbeated (`metadata.startedAt`/`heartbeatAt`) and every cycle checkpoints to `plans/loop/<slug>.md`. On re-entry the loop **reclaims any stale `in_progress` task** (interrupted, not running), checks what already landed, and continues idempotently — fixing the "M19 stranded in_progress after a connection drop" case. `/resume` is now goal-loop-aware and continues the loop rather than treating it as a one-shot.
+- **The loop runs to a real exit condition, never a milestone.** `loop.md` now enumerates the ONLY valid stops (goal met / backlog empty / maxCycles / budget / escalation) and explicitly bans voluntary pauses ("clean milestone", "done a lot", "say keep going") — the behavior that made a loop hold and ask to continue.
+- **New Stop hook** `bin/loop-rearm.py` (in `hooks/hooks.json`): while a loop is `status: active`, it refuses a premature stop and tells the model to resume. Honors `stop_hook_active` (no infinite loops), fails open, kill switch `LOOBSTER_LOOP_REARM=0`. For hard crashes (API connection drop) the durable driver is still the reliable re-entry path.
+- New `tests/test-loop-rearm.sh` (block-only-when-active, infinite-loop guard, kill switch, fail-open). Tests 24/24 across 4 suites. Bump 0.9.0.
+
 ## 0.8.0 — Codex support + "loop engineering" positioning
 
 - **Runs in Codex now** (and any `AGENTS.md` / `.agents/skills` agent), not just Claude Code. New `AGENTS.md` (methodology + non-negotiable rules, under Codex's 32 KiB cap) + `.agents/skills/<cmd>/SKILL.md` for every command, **generated** from the canonical `commands/*.md` by `bin/build-codex-skills.py` (single source of truth; `--check` flags drift). headroom on Codex = Option C proxy/middleware (Codex has no PostToolUse hook).

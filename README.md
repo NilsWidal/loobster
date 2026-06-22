@@ -12,8 +12,8 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 ![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8957e5)
-![version](https://img.shields.io/badge/version-0.8.0-3fb950)
-![tests](https://img.shields.io/badge/tests-18%20passing-3fb950)
+![version](https://img.shields.io/badge/version-0.9.0-3fb950)
+![tests](https://img.shields.io/badge/tests-24%20passing-3fb950)
 ![compliance](https://img.shields.io/badge/compliance-4%20frameworks-8957e5)
 ![security](https://img.shields.io/badge/security-CodeQL-2ea043)
 
@@ -47,7 +47,7 @@ It stands on two foundations: **[RePPIT](https://themodernsoftware.dev)** (Mihai
 | **Structured workflow** | Research → Propose → Plan → Implement → Test → Secure (the RePPITS method), with explicit approval gates |
 | **Adaptive gating** | Phase-0 right-sizing (trivial / standard / sensitive) chooses which gates apply; sensitive never auto-advances |
 | **Autonomous mode** | At Gate 3, "run autonomously" drives Implement → Test → Secure on its own (bounded loop, cap 3, escalate; final commit/push always stops) |
-| **Goal-loop** | `/loop` works a prioritized RICE-scored backlog toward a standing goal, cycle after cycle |
+| **Goal-loop** | `/loop` works a prioritized RICE-scored backlog toward a standing goal, cycle after cycle — **crash-safe** (reclaims interrupted tasks) and runs to a real exit condition, never pausing at a milestone |
 | **Signals hub** | `/signals` — a shared team hub: any loop/teammate emits observations, any loop consumes them, with a dynamic dashboard |
 | **Configurable compliance** | Enable any of **HIPAA · HITRUST · ISO 27001 · SOC 2** per repo — healthcare is a profile, not a requirement |
 | **Token discipline** | Subagent isolation + artifact compaction always on; optional [headroom](https://github.com/chopratejas/headroom) compression |
@@ -105,6 +105,7 @@ The workflow adapts to the task instead of forcing every change through identica
 - **Autonomous convergence loop.** When Secure finds FAILs, the Implement→Test→Secure fix loop self-drives (no gate between iterations) up to a **cap of 3**, then escalates to a human — it never silently commits past unresolved FAILs.
 - **Capability tiers.** The same workflow degrades gracefully across runtimes: Tier 0 (always-on, markdown-only) → Tier 1 (parallel independent sub-issues via subagents) → Tier 2 (deterministic Workflow harness, opt-in; tracked as a follow-up).
 - **Resumable.** Plan-phase work is recorded as Claude Code Tasks with a real status lifecycle, so `/resume` can rebuild and continue after a crash or a new session.
+- **Self-healing loops.** A goal-loop heartbeats each in-progress task and checkpoints every cycle, so a dead turn (API drop, crash, stop) is reclaimed and resumed — not lost. A bundled Stop hook (`bin/loop-rearm.py`) keeps an active loop from stopping at a milestone; pair it with a durable driver (the `/loop` scheduler / cron) for unattended runs. `LOOBSTER_LOOP_REARM=0` to disable.
 
 ## Token reduction
 
