@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.2 — Visible loop schedule + `status` query (ask loobster)
+
+- The loop **prints the re-entry schedule it armed** on kickoff — cron expression, human-readable cadence, job id, 7-day expiry, and how to cancel — the same way the `/loop` skill confirms its schedule. No more guessing whether self-driving is on.
+- New **`/loobster:loop status`** (or just ask "what's the loop doing / what's scheduled?") reports each active/paused loop's schedule (via `CronList` + the marker's `reentry` id), backlog counts, readiness (Stop hook / permission mode / headroom), and how to stop — without running a cycle.
+- Replaces a separate readiness script with "ask loobster". (Reminder: run `/reload-plugins` after `/plugin update` so the new loop.md actually loads.)
+
 ## 0.9.1 — Self-driving loops (no wrapper needed)
 
 - `/loobster:loop <goal>` now **arms its own durable re-entry** — a `ScheduleWakeup` (in-session) plus an optional `CronCreate` (closed-session) that re-invoke the command itself. You no longer wrap it in the `/loop` scheduler; the single command survives a dead turn and resumes from its checkpoint. The driver is recorded in the marker (`reentry: <id>`) and cancelled on exit/escalation.

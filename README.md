@@ -12,7 +12,7 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 ![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8957e5)
-![version](https://img.shields.io/badge/version-0.9.1-3fb950)
+![version](https://img.shields.io/badge/version-0.9.2-3fb950)
 ![tests](https://img.shields.io/badge/tests-25%20passing-3fb950)
 ![compliance](https://img.shields.io/badge/compliance-4%20frameworks-8957e5)
 ![security](https://img.shields.io/badge/security-CodeQL-2ea043)
@@ -105,7 +105,7 @@ The workflow adapts to the task instead of forcing every change through identica
 - **Autonomous convergence loop.** When Secure finds FAILs, the Implement→Test→Secure fix loop self-drives (no gate between iterations) up to a **cap of 3**, then escalates to a human — it never silently commits past unresolved FAILs.
 - **Capability tiers.** The same workflow degrades gracefully across runtimes: Tier 0 (always-on, markdown-only) → Tier 1 (parallel independent sub-issues via subagents) → Tier 2 (deterministic Workflow harness, opt-in; tracked as a follow-up).
 - **Resumable.** Plan-phase work is recorded as Claude Code Tasks with a real status lifecycle, so `/resume` can rebuild and continue after a crash or a new session.
-- **Self-healing, self-driving loops.** `/loobster:loop <goal>` arms its **own** durable re-entry (a `ScheduleWakeup`/cron that re-invokes itself) — no need to wrap it in a separate scheduler. It heartbeats each in-progress task and checkpoints every cycle, so a dead turn (API drop, crash, stop) is reclaimed and resumed — not lost; for closed-session runs it also registers a cloud cron. A bundled Stop hook (`bin/loop-rearm.py`) additionally keeps an active loop from stopping at a milestone, while leaving approval gates (`status: paused`) sacred. `LOOBSTER_LOOP_REARM=0` to disable the hook.
+- **Self-healing, self-driving loops.** `/loobster:loop <goal>` arms its **own** durable re-entry (a `ScheduleWakeup`/cron that re-invokes itself) — no need to wrap it in a separate scheduler — and **prints the schedule it armed** on kickoff (cron expression, cadence, job id, how to cancel), just like the `/loop` skill. Ask **`/loobster:loop status`** anytime to see the schedule, backlog, and readiness. It heartbeats each in-progress task and checkpoints every cycle, so a dead turn (API drop, crash, stop) is reclaimed and resumed — not lost. A bundled Stop hook (`bin/loop-rearm.py`) keeps an active loop from stopping at a milestone, while leaving approval gates (`status: paused`) sacred. `LOOBSTER_LOOP_REARM=0` to disable the hook.
 
 ## Token reduction
 
