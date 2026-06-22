@@ -4,7 +4,7 @@ A self-contained static docs site (`index.html`) — no build step, no dependenc
 
 ## Local
 ```
-open site/index.html
+open docs/index.html
 ```
 
 ## Deploy to Vercel (gives a URL)
@@ -17,7 +17,7 @@ vercel --prod      # production URL
 ```
 
 **Option B — Git integration:** import `NilsWidal/loobster` in the Vercel dashboard and set:
-- **Root Directory:** `site`
+- **Root Directory:** `docs`
 - **Framework Preset:** Other
 - **Build Command:** (none) · **Output Directory:** (leave default)
 
