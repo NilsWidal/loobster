@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0 — Codex support + "loop engineering" positioning
+
+- **Runs in Codex now** (and any `AGENTS.md` / `.agents/skills` agent), not just Claude Code. New `AGENTS.md` (methodology + non-negotiable rules, under Codex's 32 KiB cap) + `.agents/skills/<cmd>/SKILL.md` for every command, **generated** from the canonical `commands/*.md` by `bin/build-codex-skills.py` (single source of truth; `--check` flags drift). headroom on Codex = Option C proxy/middleware (Codex has no PostToolUse hook).
+- **Reframed around "loop engineering"** — a new "Why loop engineering" section (README + docs) positions Loobster as the harness that makes an autonomous loop safe to run, on the RePPIT (Mihail Eric) + headroom (Tejas Chopra) foundations. New "Use with Codex" section + docs quickstart.
+- New `tests/test-codex-skills.sh` (sync, frontmatter, no leaked tokens, AGENTS.md size). Bump to 0.8.0.
+
 ## 0.7.0 — headroom on by default
 
 - **Token compression is no longer opt-in** — the headroom `PostToolUse` hook (Option D) is **enabled by default**. It compresses large read-heavy tool outputs whenever a local headroom install is importable, and is a **no-op when headroom isn't installed**. Disable with `LOOBSTER_HEADROOM=0`.

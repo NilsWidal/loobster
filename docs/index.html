@@ -50,6 +50,7 @@
 
 <nav><div class="wrap">
   <b>🦞 Loobster</b>
+  <a href="#why">Why loops</a>
   <a href="#teams">For teams</a>
   <a href="#how">How it works</a>
   <a href="#commands">Commands</a>
@@ -84,8 +85,15 @@
 
 <section id="what">
   <h2>What is Loobster?</h2>
-  <p class="lead">Loobster (loop + lobster 🦞) is a Claude Code plugin that turns AI-assisted development into a <b>repeatable, reviewable, secure loop</b> — the RePPITS methodology: <b>R</b>esearch → <b>P</b>ropose → <b>P</b>lan → <b>I</b>mplement → <b>T</b>est → <b>S</b>ecure. It right-sizes each task, can run autonomously between gates, and proves its work instead of trusting itself.</p>
+  <p class="lead">Loobster (loop + lobster 🦞) is a loop harness for AI-assisted development (Claude Code <i>and</i> Codex) that turns it into a <b>repeatable, reviewable, secure loop</b> — the RePPITS methodology: <b>R</b>esearch → <b>P</b>ropose → <b>P</b>lan → <b>I</b>mplement → <b>T</b>est → <b>S</b>ecure. It right-sizes each task, can run autonomously between gates, and proves its work instead of trusting itself.</p>
   <p>It's markdown-and-conventions — no servers, no lock-in. Healthcare compliance is <i>one</i> aspect (HIPAA/HITRUST), alongside ISO 27001 and SOC 2 — enable only what your repo needs.</p>
+</section>
+
+<section id="why">
+  <h2>Why loop engineering</h2>
+  <p class="lead">AI development is moving from one-shot prompts to <b>durable, autonomous loops</b> — the loop, not the prompt, is the unit of work. But an unsupervised loop is only as trustworthy as its guardrails: left alone it will rubber-stamp its own output, drift from scope, or burn the context window.</p>
+  <p><b>Loobster is the harness that makes a loop safe to let run</b> — risk-tiered gates, a bounded convergence loop (cap 3, then escalate to a human), independent verification (never self-verify), a shared signals channel, and compliance + token discipline so long loops stay affordable.</p>
+  <div class="benefit"><b>Foundations:</b> <a href="https://themodernsoftware.dev">RePPIT</a> (Mihail Eric) gives the phase structure a loop iterates over; <a href="https://github.com/chopratejas/headroom">headroom</a> (Tejas Chopra) gives the token economics that make long loops viable. Loobster wires both into the agent's control loop.</div>
 </section>
 
 <section id="teams">
@@ -182,6 +190,8 @@
 
 # pick your compliance frameworks (.claude/loobster-frameworks.json)
 { "frameworks": ["soc2", "iso27001"] }</pre>
+  <p>Or with <b>Codex</b> — it reads <code>AGENTS.md</code> + <code>.agents/skills/</code> from the repo:</p>
+  <pre class="cmd">codex            # then:  $run &lt;task&gt;   ·   $loop &lt;goal&gt;   ·   $secure</pre>
   <p class="lead">See the full <a href="https://github.com/NilsWidal/loobster#readme">README</a> for every feature.</p>
 </section>
 

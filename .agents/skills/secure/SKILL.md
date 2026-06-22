@@ -1,0 +1,111 @@
+---
+name: secure
+description: Run the enabled compliance checklists (any of HIPAA / HITRUST / ISO 27001 / SOC 2) against the diff, separating code-verifiable findings from organizational controls. Always run before committing a sensitive change.
+---
+
+<!-- GENERATED from commands/secure.md by bin/build-codex-skills.py — do not edit here. -->
+
+Run security/compliance checks against all uncommitted changes, for the frameworks you have enabled (any of: HIPAA, HITRUST, ISO 27001, SOC 2 — see `compliance/frameworks.md`). Healthcare frameworks are one aspect — not all of them have to be on.
+
+> **Independent assessment — never self-verify.** Run this in a **separate verifier subagent** (`Agent`) that did not produce the code. Per the token-discipline note below, delegate each enabled framework's checklist to its own judge subagent; the implementing agent never grades its own diff. (See the "Never self-verify" rule in `run.md`.)
+
+## What this does
+
+- Gathers all uncommitted changes (staged + unstaged)
+- Runs each enabled security framework checklist against the diff
+- Produces a pass/warn/fail report for **code-verifiable** items
+- Surfaces **organizational `[org]` items** separately as "NOT VERIFIED — requires manual/periodic review"
+- Optionally posts findings to the relevant issue tracker
+
+## Steps
+
+1. Collect the diff:
+   - `git diff`
+   - `git diff --cached`
+   - `git diff HEAD`
+2. If an issue ID is provided or can be inferred from the branch name, read it for context.
+3. **Determine which frameworks are enabled.** Read `.claude/loobster-frameworks.json` in the user's workspace, e.g. `{ "frameworks": ["soc2", "iso27001"] }`. If it is absent, default to **all four** (`hipaa`, `hitrust`, `iso27001`, `soc2`) — nothing is silently skipped. See `compliance/frameworks.md` for keys and profiles. Then read the checklist for each **enabled** framework:
+   - `compliance/hipaa-checklist.md`
+   - `compliance/hitrust-checklist.md`
+   - `compliance/iso27001-checklist.md`
+   - `compliance/soc2-checklist.md`
+   If a workspace override exists at `.claude/compliance/<framework>-checklist.md` in the user's repo, prefer that. If neither exists, fall back to the built-in checks below. Only run frameworks that are enabled.
+4. Run each security checklist against the diff.
+   - **Token discipline (see `.agents/skills/token-discipline/SKILL.md`):** when the diff is large or several frameworks are enabled, delegate each framework's checklist evaluation to its own `Agent` subagent and collect only the per-item PASS/WARN/FAIL verdicts. The main thread assembles the report from those verdicts. Never let a subagent's raw file reads back into the main context — only the verdicts.
+5. **For items marked `[org]`**: Do NOT auto-pass these. Instead, check if the diff touches files relevant to that control (e.g., CDK/infrastructure changes for physical safeguards, CI/CD changes for change management). If the diff is relevant, evaluate what you can. If not, mark as `SKIPPED` with a note that it requires periodic organizational review.
+6. For each code-verifiable item, assign a status:
+   - **PASS** — requirement met
+   - **WARN** — potential concern, needs human review
+   - **FAIL** — clear violation found
+   - **SKIPPED** — cannot be verified from code diff (organizational/physical control)
+7. Present the report using the output template below.
+8. If Linear MCP tools are available and an issue was identified, post the security report as a comment.
+9. If Claude Code Tasks track this work (`TaskList`), record the result: any task with an unresolved **FAIL** stays `in_progress` (a FAIL blocks completion); mark tasks `completed` only when no FAIL remains. This keeps `/resume` and the Phase 6 convergence loop accurate across sessions.
+
+### Built-in HIPAA Checks (fallback)
+
+- No PHI (names, DOB, SSN, emails, phone numbers) in logs, comments, error messages, or string literals
+- **No PHI in shared signal files** (`signals/*.md`) — signals are committed/shared and must be non-PHI summaries; if the diff touches `signals/`, run `bin/signals-build.py signals --strict` and treat any PHI-shaped or malformed signal as a **FAIL**
+- Data at rest encryption (no plaintext storage of sensitive fields)
+- Data in transit (HTTPS/TLS for all external calls)
+- Access control (authentication checks, proper authorization)
+- Audit trail (data access/modification is logged)
+- Minimum necessary (only required data fields are queried/returned)
+- Soft delete only (no hard deletes of patient/health data)
+
+### Built-in SOC2 Checks (fallback)
+
+- Input validation on all API boundaries
+- Error handling does not leak internal details to clients
+- Dependencies are pinned (no floating versions)
+- No secrets or credentials in code
+- Change management (PR review, automated deployment)
+
+### Built-in ISO 27001 Checks (fallback)
+
+- Secure development (A.8.25–8.28): input validation at trust boundaries, no injection vectors, output encoding
+- Cryptography (A.8.24): TLS in transit, sensitive data encrypted at rest, strong algorithms, no hardcoded keys
+- Access control & authentication (A.8.2–8.5): server-side authz, correct session/token handling, least privilege
+- Logging & masking (A.8.15–8.16, A.8.11–8.12): security actions logged; secrets/sensitive data masked in logs and errors
+- Vulnerability & config management (A.8.8–8.9): pinned dependencies, no committed secrets
+
+### Built-in HITRUST Checks (fallback)
+
+- Session management (proper token handling, expiry)
+- Credential handling (no plaintext passwords, proper hashing)
+- Cross-tenant data access prevention
+- Encryption (strong algorithms, no weak crypto)
+
+## Output template
+
+```
+## Security Review
+
+Summary: <1-2 sentences>
+Frameworks run: <list the enabled frameworks, e.g. SOC2, ISO 27001>
+
+<!-- One section per ENABLED framework (omit disabled ones) -->
+### <FRAMEWORK>
+| Status | Check | Detail |
+|--------|-------|--------|
+| PASS/WARN/FAIL | <check name> | <explanation> |
+
+### Organizational Controls (not verifiable from code)
+| Framework | Control | Last Verified | Action Required |
+|-----------|---------|---------------|-----------------|
+| HIPAA §164.310 | Physical safeguards | See periodic audit | Quarterly review |
+| SOC2 CC1.2 | Board oversight | See periodic audit | Quarterly review |
+| ... | ... | ... | ... |
+
+Items skipped: <count> (see periodic audit schedule in `compliance/org-controls-audit.md`)
+
+Blocking issues: <count>
+```
+
+## Notes
+
+- FAIL items should block any commit/push — flag clearly.
+- WARN items need human judgment — present but don't block.
+- SKIPPED items are organizational controls — they do NOT block but must be tracked via periodic audit.
+- This command can be run standalone or as part of the full `/run` flow.
+- If this diff touches infrastructure (CDK, K8s, CI/CD), evaluate relevant `[org]` items against the infrastructure changes rather than skipping them.
