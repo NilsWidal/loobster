@@ -1,6 +1,6 @@
 # HITRUST CSF v11 Security Checklist
 
-Review each item against the code diff. For each, assign: **PASS**, **WARN**, or **FAIL**.
+Review each item against the code diff. For each, assign: **PASS**, **WARN**, **FAIL**, or **SKIPPED** (for [org] or physical controls not verifiable from the diff).
 Items marked *[org]* may not be directly visible in the diff — verify the organizational control exists.
 Control IDs reference the HITRUST CSF v11 control categories.
 
@@ -325,5 +325,5 @@ Control IDs reference the HITRUST CSF v11 control categories.
 For each item above, emit a structured marker:
 
 ```
-<!-- SECURE_ITEM:pass|warn|fail:HITRUST ##.x:Check Name:Detail about the finding -->
+<!-- SECURE_ITEM:pass|warn|fail|skip:HITRUST ##.x:Check Name:Detail about the finding -->
 ```

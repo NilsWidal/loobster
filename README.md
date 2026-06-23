@@ -12,8 +12,8 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 ![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8957e5)
-![version](https://img.shields.io/badge/version-0.9.3-3fb950)
-![tests](https://img.shields.io/badge/tests-25%20passing-3fb950)
+![version](https://img.shields.io/badge/version-0.9.4-3fb950)
+![tests](https://img.shields.io/badge/tests-45%20passing-3fb950)
 ![compliance](https://img.shields.io/badge/compliance-4%20frameworks-8957e5)
 ![security](https://img.shields.io/badge/security-CodeQL-2ea043)
 
@@ -38,7 +38,7 @@ AI-assisted development is shifting from one-shot prompts to **durable, autonomo
 - **Signals** — independent loops (and people) coordinate through a shared, mergeable channel.
 - **Compliance + token discipline** — gates run against the diff; context stays lean enough that long loops stay affordable.
 
-It stands on two foundations: **[RePPIT](https://themodernsoftware.dev)** (Mihail Eric) gives the phase structure a loop iterates over, and **[headroom](https://github.com/chopratejas/headroom)** (Tejas Chopra) gives the token economics that make long loops viable. Loobster wires both into the agent's control loop.
+It stands on two foundations: **[RePPIT](https://themodernsoftware.dev)** (Mihail Eric) gives the phase structure a loop iterates over, and **[headroom](https://github.com/headroomlabs-ai/headroom)** (Tejas Chopra) gives the token economics that make long loops viable. Loobster wires both into the agent's control loop.
 
 ## At a glance
 
@@ -50,11 +50,11 @@ It stands on two foundations: **[RePPIT](https://themodernsoftware.dev)** (Mihai
 | **Goal-loop** | `/loop` works a prioritized RICE-scored backlog toward a standing goal, cycle after cycle — **crash-safe** (reclaims interrupted tasks) and runs to a real exit condition, never pausing at a milestone |
 | **Signals hub** | `/signals` — a shared team hub: any loop/teammate emits observations, any loop consumes them, with a dynamic dashboard |
 | **Configurable compliance** | Enable any of **HIPAA · HITRUST · ISO 27001 · SOC 2** per repo — healthcare is a profile, not a requirement |
-| **Token discipline** | Subagent isolation + artifact compaction always on; optional [headroom](https://github.com/chopratejas/headroom) compression |
+| **Token discipline** | Subagent isolation + artifact compaction always on; optional [headroom](https://github.com/headroomlabs-ai/headroom) compression |
 
 ## What you get
 
-Eleven slash commands, available in Claude Code, Cursor, **Codex**, and any client that supports the Claude Code plugin spec or the `AGENTS.md` / `.agents/skills` convention:
+Eleven slash commands, available in Claude Code, Cursor, **Codex**, and any client that supports the Claude Code plugin spec or the `AGENTS.md` / `.agents/skills` convention (two shared reference docs — `backlog-scoring` and `token-discipline` — live in `reference/`, not as commands):
 
 | Command | What it does |
 |---|---|
@@ -105,20 +105,20 @@ The workflow adapts to the task instead of forcing every change through identica
 - **Autonomous convergence loop.** When Secure finds FAILs, the Implement→Test→Secure fix loop self-drives (no gate between iterations) up to a **cap of 3**, then escalates to a human — it never silently commits past unresolved FAILs.
 - **Capability tiers.** The same workflow degrades gracefully across runtimes: Tier 0 (always-on, markdown-only) → Tier 1 (parallel independent sub-issues via subagents) → Tier 2 (deterministic Workflow harness, opt-in; tracked as a follow-up).
 - **Resumable.** Plan-phase work is recorded as Claude Code Tasks with a real status lifecycle, so `/resume` can rebuild and continue after a crash or a new session.
-- **Self-healing, self-driving loops.** `/loobster:loop <goal>` arms its **own** durable re-entry (a `ScheduleWakeup`/cron that re-invokes itself) — no need to wrap it in a separate scheduler — and **prints the schedule it armed** on kickoff (cron expression, cadence, job id, how to cancel), just like the `/loop` skill. Ask **`/loobster:loop status`** anytime to see the schedule, backlog, and readiness. It heartbeats each in-progress task and checkpoints every cycle, so a dead turn (API drop, crash, stop) is reclaimed and resumed — not lost. A **single-runner lease** keeps only one instance looping per worktree, so a wakeup/cron re-entry (or a parallel run) **backs off instead of colliding** — self-driving is concurrency-safe by construction, even on a shared worktree. A bundled Stop hook (`bin/loop-rearm.py`) keeps an active loop from stopping at a milestone, while leaving approval gates (`status: paused`) sacred. `LOOBSTER_LOOP_REARM=0` to disable the hook.
+- **Self-healing, self-driving loops.** `/loobster:loop <goal>` arms its **own** durable re-entry (a `ScheduleWakeup`/cron that re-invokes itself) — no need to wrap it in a separate scheduler — and **prints the schedule it armed** on kickoff (cron expression, cadence, job id, how to cancel), just like the `/loop` skill. Ask **`/loobster:loop status`** anytime to see the schedule, backlog, and readiness. It heartbeats each in-progress task and checkpoints every cycle, so a dead turn (API drop, crash, stop) is reclaimed and resumed — not lost. A **single-runner lease** keeps only one instance looping per worktree, so a wakeup/cron re-entry (or a parallel run) **backs off instead of colliding** — self-driving is concurrency-safe via an **atomic lock file** (`bin/loop-lease.py`, claimed with `O_CREAT|O_EXCL`), even on a shared worktree. A bundled Stop hook (`bin/loop-rearm.py`) keeps an active loop from stopping at a milestone, while leaving approval gates (`status: paused`) sacred. `LOOBSTER_LOOP_REARM=0` to disable the hook.
 
 ## Token reduction
 
 Loobster keeps the model's working context lean in two layers:
 
-1. **Native token discipline (always on, zero-dependency, portable).** `commands/token-discipline.md` bakes in subagent isolation (heavy reads happen in a subagent; only the conclusion returns), artifact compaction (pass summaries between phases, re-read files on demand), cache-stable prefixes, and terse output. This reduces tokens by *elimination and structure* — it works identically in Claude Code, the plugin, and a custom Agent SDK harness.
-2. **Wire-level compression with [headroom](https://github.com/chopratejas/headroom) (Option D — on by default).** For real, automatic, every-read compression, Loobster ships headroom integration:
-   - **Option D — bundled hook (Claude Code context), enabled by default.** The `PostToolUse` hook in `hooks/hooks.json` pipes large tool outputs through a locally-installed headroom (`bin/headroom-compress.py`) before they enter context. It's **on by default** and a **no-op when headroom isn't installed**; set `LOOBSTER_HEADROOM=0` to disable — do this on PHI repos until headroom has had a data-path review.
+1. **Native token discipline (always on, zero-dependency, portable).** `reference/token-discipline.md` bakes in subagent isolation (heavy reads happen in a subagent; only the conclusion returns), artifact compaction (pass summaries between phases, re-read files on demand), cache-stable prefixes, and terse output. This reduces tokens by *elimination and structure* — it works identically in Claude Code, the plugin, and a custom Agent SDK harness.
+2. **Wire-level compression with [headroom](https://github.com/headroomlabs-ai/headroom) (Option D — on by default).** For real, automatic, every-read compression, Loobster ships headroom integration:
+   - **Option D — bundled hook (Claude Code context), enabled by default.** The `PostToolUse` hook in `hooks/hooks.json` pipes large tool outputs through a locally-installed headroom — `pip install "headroom-ai[code]"` — via `bin/headroom-compress.py` before they enter context. It's **on by default** and a **no-op when headroom isn't installed**; set `LOOBSTER_HEADROOM=0` to disable — do this on PHI repos until headroom has had a data-path review.
    - **Option C — proxy / SDK middleware (any context, incl. Agent SDK).** Run `headroom proxy` and point your base URL at it, or use headroom's SDK middleware in your own harness.
 
-> **Gratitude & attribution.** The token-reduction design here adapts the mechanisms pioneered by [**headroom** (chopratejas/headroom)](https://github.com/chopratejas/headroom) — reversible-context retrieval (CCR), prefix stabilization (CacheAligner), and content-type-aware compression of what the model reads. The native conventions are a runtime-free interpretation of those ideas; Options C/D use headroom itself. Thank you to the headroom authors. A markdown plugin has no wire to intercept, so it cannot *be* a proxy or SDK middleware — replication is per-context (a hook covers Claude Code; middleware/proxy covers the Agent SDK), never universal.
+> **Gratitude & attribution.** The token-reduction design here adapts the mechanisms pioneered by [**headroom** (headroomlabs-ai/headroom)](https://github.com/headroomlabs-ai/headroom) — reversible-context retrieval (CCR), prefix stabilization (CacheAligner), and content-type-aware compression of what the model reads. The native conventions are a runtime-free interpretation of those ideas; Options C/D use headroom itself. Thank you to the headroom authors. A markdown plugin has no wire to intercept, so it cannot *be* a proxy or SDK middleware — replication is per-context (a hook covers Claude Code; middleware/proxy covers the Agent SDK), never universal.
 >
-> **Healthcare caveat.** Enabling Option D or C puts a compressor in the **PHI data path** (it reads tool outputs that may contain PHI), and headroom's CCR stores originals locally (PHI-at-rest). Both are **off by default** and require a security review / data-path sign-off before use in PHI environments — see `compliance/org-controls-audit.md`.
+> **Healthcare caveat.** Enabling Option D or C puts a compressor in the **PHI data path** (it reads tool outputs that may contain PHI), and headroom's CCR stores originals locally (PHI-at-rest). Option D is on by default but **no-ops unless headroom is installed**; **disable it (`LOOBSTER_HEADROOM=0`) in PHI environments** until a data-path sign-off, and Option C is opt-in — see `compliance/org-controls-audit.md`.
 
 ## Goal-loop mode
 
@@ -141,7 +141,7 @@ flowchart LR
     class Goal,Done term
 ```
 
-- **Backlog = Claude Code Tasks + metadata.** Items are scored with a model-set **RICE** estimate (`(reach × impact × confidence) / effort`); the loop always works the highest-scored open item and re-scores each cycle (see `commands/backlog-scoring.md`).
+- **Backlog = Claude Code Tasks + metadata.** Items are scored with a model-set **RICE** estimate (`(reach × impact × confidence) / effort`); the loop always works the highest-scored open item and re-scores each cycle (see `reference/backlog-scoring.md`).
 - **Goal = free text, model-judged.** The model judges met / partial / not-met against your free-text success criteria each cycle.
 - **Bounded & resumable.** Cycle cap + optional token budget; escalates on a stuck item, a sensitive Secure FAIL, or a budget spike; the backlog is durable so the loop resumes after a crash. Compliance gates and Secure are never bypassed; nothing auto-pushes.
 - **Enable compression for loops.** A goal-loop re-reads code every cycle, so we **recommend turning on Option D** (`LOOBSTER_HEADROOM=1`, see Token reduction above) — the repeated code reads are exactly headroom's AST-aware `CodeCompressor` sweet spot.
@@ -167,7 +167,7 @@ flowchart LR
 ```
 
 - **One signal = one file** — `signals/<date>-<author>-<slug>.md` (frontmatter + 1-line body). File-per-signal keeps multi-writer merge conflicts rare; `author` gives team attribution. See `commands/signals.md`.
-- **Committed + shared** — the hub is tracked so the whole team sees it. The **load-bearing rule: signals are non-PHI summaries** ("5 users asked about export", never raw PHI) — `/secure` enforces it via `bin/signals-build.py --strict`.
+- **Committed + shared** — the hub is tracked so the whole team sees it. The **load-bearing rule: signals are non-PHI summaries** ("5 users asked about export", never raw PHI) — `/secure` checks it with `bin/signals-build.py --strict`, a best-effort PHI lint that **quarantines** flagged signals from the build by default (a lint, not a guarantee).
 - **Dynamic dashboard** — `bin/signals-build.py` regenerates `signals/{data.js,data.json,INDEX.md}`; open `templates/signals-dashboard.html` for a live team-status board (group by status / author / loop / type; auto-refresh).
 - **Optional GitHub Pages** — `templates/signals-pages.yml` publishes the dashboard to a shared team URL, updated on each push. **Private repo / non-PHI only** (a public Pages site would expose your signals) — see `compliance/org-controls-audit.md`.
 - **Signals are upstream of the backlog** — consuming a signal can spawn a RICE-scored `/loop` task.
@@ -272,7 +272,7 @@ If Linear is not configured, the plugin falls back to local `.md` files in `rese
 ## Credits
 
 - **RePPIT methodology** — [Mihail Eric](https://github.com/mihail911), Head of AI, creator of [Stanford's first AI software engineering course](https://themodernsoftware.dev)
-- **Token-reduction mechanisms** — [headroom](https://github.com/chopratejas/headroom) by [Tejas Chopra](https://github.com/chopratejas), whose CCR, CacheAligner, and content-type compressors inspired the native token-discipline conventions and power the optional Option C/D integrations
+- **Token-reduction mechanisms** — [headroom](https://github.com/headroomlabs-ai/headroom) by [Tejas Chopra](https://github.com/chopratejas), whose CCR, CacheAligner, and content-type compressors inspired the native token-discipline conventions and power the optional Option C/D integrations
 - **Loobster** — by [Nils Widal](https://github.com/NilsWidal)
 
 ## License

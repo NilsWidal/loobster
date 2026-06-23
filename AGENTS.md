@@ -6,18 +6,20 @@ It implements the **RePPITS** method — Research → Propose → Plan → Imple
 
 ## How to run it
 
-- **Codex / `.agents/skills` agents:** invoke a skill explicitly (`/skills` or `$run`) or let it trigger implicitly. The skills are `run`, `loop`, `signals`, `verify-frontend`, `research-codebase`, `make-proposals`, `make-plan`, `implement`, `review-code`, `secure`, `resume` (plus `token-discipline` and `backlog-scoring` as references).
+- **Codex / `.agents/skills` agents:** invoke a skill explicitly (`/skills` or `$run`) or let it trigger implicitly. The skills are `run`, `loop`, `signals`, `verify-frontend`, `research-codebase`, `make-proposals`, `make-plan`, `implement`, `review-code`, `secure`, `resume` (plus `token-discipline` and `backlog-scoring`, which are **reference docs in `reference/`** read by the skills above — not invoked directly).
 - **Claude Code:** the same files run as plugin commands (`/loobster:run`, etc.).
 - Start with **`run`** for a feature/change end-to-end; **`loop`** for a continuous goal-loop; **`signals`** to coordinate across loops/people.
+- **The `loop` skill self-drives** via a single-runner lease (an **atomic lock file**, `bin/loop-lease.py` — one instance per worktree) and **never re-enters a `paused`/`done` loop** (that's what keeps an approval gate from being auto-driven past). In runtimes without `CronCreate`/`ScheduleWakeup` (e.g. Codex) it runs in-session; supply an external driver for closed-session durability.
 
 ## Non-negotiable rules (apply to every skill)
 
 1. **Never self-verify.** Every Test / Secure / review / frontend-verify step runs in a **separate verifier agent** (or CI) that did **not** produce the work. The implementer never grades its own diff.
 2. **Right-size first.** Classify each task **trivial / standard / sensitive**. Sensitive = touches PHI, auth, crypto, audit logging, data retention/deletion, multi-tenant isolation, or infra. When in doubt, choose sensitive.
-3. **Gates by tier.** Standard/sensitive changes stop at approval gates between phases; **sensitive never auto-advances**. Trivial may collapse early gates only when explicitly allowed.
+3. **Gates by tier.** Standard/sensitive changes stop at approval gates between phases; **sensitive never auto-advances**. Trivial may collapse early gates only with `--auto`. Flags: `--auto` (trivial-only early auto-advance, ignored for sensitive), `--manual` (force every gate), `--autonomous` (pre-select Gate-3 autonomous mode).
 4. **Secure always runs.** The Secure phase runs for every tier and **blocks on any FAIL** — never skipped, never bypassed.
 5. **Bounded autonomy.** When Secure finds FAILs, the Implement→Test→Secure fix loop self-drives up to a **cap of 3 iterations**, then **escalates to a human**. It never silently commits past unresolved FAILs.
 6. **The final commit/push always stops for human approval** — in every mode. Nothing auto-pushes.
+7. **Autonomous mode** (Gate 3 / `--autonomous`) auto-advances only the intermediate Implement/Test review prompts; **Test and Secure still run and block on findings**, and the final commit/push always stops.
 
 ## Signals (cross-loop coordination)
 
@@ -29,7 +31,7 @@ Per-repo, enable any of **HIPAA / HITRUST / ISO 27001 / SOC 2** via `.claude/loo
 
 ## Token discipline
 
-Subagent context-isolation + artifact compaction are always on (see the `token-discipline` skill). For automatic wire-level compression with [headroom](https://github.com/chopratejas/headroom):
+Subagent context-isolation + artifact compaction are always on (see the `token-discipline` skill). For automatic wire-level compression with [headroom](https://github.com/headroomlabs-ai/headroom) (`pip install "headroom-ai[code]"`):
 - **In Codex / Agent SDK:** use headroom's **proxy / middleware** (Option C) — run `headroom proxy` and point the model base URL at it. (Codex has no PostToolUse hook, so the Claude-Code hook below does not apply here.)
 - **In Claude Code:** the bundled `PostToolUse` hook (Option D) is on by default; `LOOBSTER_HEADROOM=0` disables it. On PHI repos, set `LOOBSTER_HEADROOM=0` until headroom has had a data-path review.
 

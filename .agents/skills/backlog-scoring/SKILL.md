@@ -1,9 +1,9 @@
 ---
 name: backlog-scoring
-description: Reference: the RICE scoring convention for the goal-loop backlog. Used by the loop skill; not usually invoked directly.
+description: Reference only (do NOT invoke as an action): the RICE scoring convention for the goal-loop backlog. Read by the loop/make-plan skills.
 ---
 
-<!-- GENERATED from commands/backlog-scoring.md by bin/build-codex-skills.py — do not edit here. -->
+<!-- GENERATED from reference/backlog-scoring.md by bin/build-codex-skills.py — do not edit here. -->
 
 # Backlog scoring — sophisticated, model-set prioritization
 

@@ -46,6 +46,7 @@ Run security/compliance checks against all uncommitted changes, for the framewor
 
 - No PHI (names, DOB, SSN, emails, phone numbers) in logs, comments, error messages, or string literals
 - **No PHI in shared signal files** (`signals/*.md`) — signals are committed/shared and must be non-PHI summaries; if the diff touches `signals/`, run `bin/signals-build.py signals --strict` and treat any PHI-shaped or malformed signal as a **FAIL**
+- **No third-party tracking/ads/analytics scripts on PHI pages** — if the diff adds frontend code that loads a third-party tracker (Google Ads/AdSense, GTM/GA/gtag, Meta Pixel, Hotjar, etc.), run `bin/scan-trackers.py <frontend dir or changed files>`. On a PHI-handling app, a tracker on any page that can see PHI is a **FAIL** unless a signed BAA exists with the vendor **and** PHI is provably excluded from what is transmitted (HHS OCR online-tracking-technologies guidance — basis of the Meta Pixel / Google Analytics healthcare settlements)
 - Data at rest encryption (no plaintext storage of sensitive fields)
 - Data in transit (HTTPS/TLS for all external calls)
 - Access control (authentication checks, proper authorization)
@@ -60,6 +61,7 @@ Run security/compliance checks against all uncommitted changes, for the framewor
 - Dependencies are pinned (no floating versions)
 - No secrets or credentials in code
 - Change management (PR review, automated deployment)
+- **Third-party scripts & consent** — new third-party tracking/ads/analytics scripts (see `bin/scan-trackers.py`) require cookie consent + privacy-policy disclosure and a data-processing agreement; flag undisclosed trackers as **WARN**
 
 ### Built-in ISO 27001 Checks (fallback)
 

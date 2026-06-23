@@ -45,7 +45,12 @@ def main():
         except Exception:
             continue
         m = re.search(r"^---\s*$(.*?)^---\s*$", head, re.S | re.M)
-        block_txt = m.group(1) if m else head
+        if not m:
+            # No frontmatter fence -> not a real loop marker. Fail OPEN (allow the
+            # stop); never scan the whole body, or a stray "status: active" line
+            # in prose would wedge the session.
+            continue
+        block_txt = m.group(1)
         st = re.search(r"^\s*status\s*:\s*(\S+)", block_txt, re.M)
         if st and st.group(1).strip().lower() == "active":
             slug = re.search(r"^\s*goalId\s*:\s*(\S+)", block_txt, re.M)

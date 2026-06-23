@@ -31,12 +31,12 @@ title: Export is too hidden
 Any loop, agent, or person, when it notices something worth sharing:
 1. Choose `type`, a 1-line `title`, tags, and a 1–3 line body (a summary/pattern, **no PHI**).
 2. **Dedup first:** if an open signal with the same logical key already exists (same slug, `status` ≠ `archived`), **append a tally** to its body (`(count: N)`) and bump `confidence` instead of creating a duplicate. Cross-author dedup: two people noticing the same thing reinforce one signal.
-3. Otherwise write a new `signals/<id>.md` with the frontmatter above and `status: new`. Stamp `author` from the current user/agent.
+3. Otherwise write a new `signals/<id>.md` with the frontmatter above and `status: new`. Stamp `author` from the current user/agent. (Create the `signals/` directory on first emit if it doesn't exist yet.)
 
 ## Consume (symmetric read)
 A loop, in its Trigger/Investigate step:
 1. Read only the **relevant** signals — filter `signals/*.md` by `status: new|ack` and a `relevance` tag the loop cares about (token-discipline: don't read the whole hub each cycle; grep the frontmatter).
-2. On acting on a signal: set `status: acted`, and optionally `TaskCreate` a RICE-scored backlog task (see `${CLAUDE_PLUGIN_ROOT}/commands/backlog-scoring.md`) — signals are **upstream** of the backlog.
+2. On acting on a signal: set `status: acted`, and optionally `TaskCreate` a RICE-scored backlog task (see `${CLAUDE_PLUGIN_ROOT}/reference/backlog-scoring.md`) — signals are **upstream** of the backlog.
 3. Set `status: archived` when a signal is resolved or stale so it isn't re-acted forever.
 
 ## Lifecycle
@@ -46,7 +46,7 @@ A loop, in its Trigger/Investigate step:
 For loops that want fast filtering instead of grep, mirror each signal as a Claude Code Task with `metadata.kind="signal"` (+ the same fields). Files remain the source of truth; the Task mirror is a convenience index and is optional.
 
 ## Visualization
-Run `${CLAUDE_PLUGIN_ROOT}/bin/signals-build.py` to regenerate `signals/data.js`, `signals/data.json`, and `signals/INDEX.md` from the `signals/*.md` files, then open `templates/signals-dashboard.html` (copy it next to `signals/`) for a live team-status board. Optionally publish it to GitHub Pages (see `.github/workflows/signals-pages.yml`) for a shared team URL — **private repo / non-PHI only**.
+Run `${CLAUDE_PLUGIN_ROOT}/bin/signals-build.py` to regenerate `signals/data.js`, `signals/data.json`, and `signals/INDEX.md` from the `signals/*.md` files, then open `${CLAUDE_PLUGIN_ROOT}/templates/signals-dashboard.html` (copy it next to `signals/`) for a live team-status board. Optionally publish it to GitHub Pages by copying `${CLAUDE_PLUGIN_ROOT}/templates/signals-pages.yml` into your repo's `.github/workflows/` for a shared team URL — **private repo / non-PHI only**.
 
 ## Storage & compliance
 - `signals/` is **tracked (committed)** by default — the whole point is team visibility; signals sync via push/pull.

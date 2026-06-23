@@ -49,4 +49,11 @@ out="$(echo "{\"cwd\":\"$d\"}" | LOOBSTER_LOOP_REARM=0 "$HOOK")"
 out="$(echo 'not json' | "$HOOK")"; rc=$?
 { ! blocks "$out" && [ "$rc" = 0 ]; } && ok "malformed stdin -> allow" || no "fail open" "rc=$rc out=$out"
 
+# 7. Marker file with NO frontmatter but a body line starting "status: active" -> allow.
+#    A stray prose line must NOT wedge the session (H05 fail-open hole).
+d="$(mktemp -d)"; mkdir -p "$d/plans/loop"
+printf 'no frontmatter here\nstatus: active in prose\n' > "$d/plans/loop/nofm.md"
+out="$(echo "{\"cwd\":\"$d\"}" | "$HOOK")"
+{ ! blocks "$out"; } && ok "no-frontmatter marker -> allow (fail open)" || no "no-frontmatter fail-open" "$out"; rmtree "$d"
+
 echo "----"; echo "$PASS passed, $FAIL failed"; [ "$FAIL" -eq 0 ]

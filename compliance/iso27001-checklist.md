@@ -1,6 +1,6 @@
 # ISO/IEC 27001:2022 Checklist (Annex A controls)
 
-Review each item against the code diff. For each, assign: **PASS**, **WARN**, or **FAIL**.
+Review each item against the code diff. For each, assign: **PASS**, **WARN**, **FAIL**, or **SKIPPED** (for [org] or physical controls not verifiable from the diff).
 Items marked *[org]* may not be directly visible in the diff — verify the organizational control exists.
 Control IDs reference the ISO/IEC 27001:2022 Annex A themes (Organizational 5.x, People 6.x, Physical 7.x, Technological 8.x).
 
@@ -80,6 +80,12 @@ Control IDs reference the ISO/IEC 27001:2022 Annex A themes (Organizational 5.x,
 
 ### 8.29 Security testing in development and acceptance
 - [ ] Behavior changes ship with a runnable automated test
+
+For each item above, emit a structured marker:
+
+```
+<!-- SECURE_ITEM:pass|warn|fail|skip:A.8.xx:Check Name:Detail about the finding -->
+```
 
 ---
 

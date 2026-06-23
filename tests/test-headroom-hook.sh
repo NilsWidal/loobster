@@ -26,10 +26,20 @@ assert_empty() {
   fi
 }
 
-# mock headroom module (compresses) on PYTHONPATH
+# mock headroom module — messages-based compress() like real headroom-ai (returns a
+# messages list). on PYTHONPATH.
 mock="$(mktemp -d)"
 cat > "$mock/headroom.py" <<'PY'
-def compress(text, model=None):
+def compress(messages, model=None):
+    text = messages[-1]["content"] if isinstance(messages, list) else str(messages)
+    return [{"role": "user", "content": "COMPRESSED:" + str(len(text))}]
+PY
+
+# mock variant that returns a plain string (back-compat shape the adapter must also handle)
+mockstr="$(mktemp -d)"
+cat > "$mockstr/headroom.py" <<'PY'
+def compress(messages, model=None):
+    text = messages[-1]["content"] if isinstance(messages, list) else str(messages)
     return "COMPRESSED:" + str(len(text))
 PY
 
@@ -57,7 +67,15 @@ else
   echo "FAIL: default-on happy path (rc=$rc, out=${out:0:80})"; FAIL=$((FAIL+1))
 fi
 
-rmtree "$mock"
+# 6. headroom returning a plain string (back-compat) -> still compresses.
+out="$(echo "$payload" | env PYTHONPATH="$mockstr" "$HOOK")"; rc=$?
+if [ "$rc" -eq 0 ] && echo "$out" | grep -q '"updatedToolOutput"' && echo "$out" | grep -q 'COMPRESSED:'; then
+  echo "PASS: str-returning headroom -> updatedToolOutput"; PASS=$((PASS+1))
+else
+  echo "FAIL: str-return path (rc=$rc, out=${out:0:80})"; FAIL=$((FAIL+1))
+fi
+
+rmtree "$mock"; rmtree "$mockstr"
 echo "----"
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

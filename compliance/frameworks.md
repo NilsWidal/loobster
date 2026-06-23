@@ -1,6 +1,6 @@
 # Security frameworks — enable / disable
 
-RePPIT's Secure phase is **framework-agnostic**: healthcare (HIPAA, HITRUST) is *one aspect*, not the whole tool. You choose which frameworks `/secure` runs against your diff. Supported today:
+Loobster's Secure phase is **framework-agnostic**: healthcare (HIPAA, HITRUST) is *one aspect*, not the whole tool. You choose which frameworks `/secure` runs against your diff. Supported today:
 
 | Key | Framework | Typical use |
 |---|---|---|

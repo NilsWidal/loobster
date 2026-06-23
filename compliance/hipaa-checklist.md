@@ -1,6 +1,6 @@
 # HIPAA Security Rule Checklist
 
-Review each item against the code diff. For each, assign: **PASS**, **WARN**, or **FAIL**.
+Review each item against the code diff. For each, assign: **PASS**, **WARN**, **FAIL**, or **SKIPPED** (for [org] or physical controls not verifiable from the diff).
 Items marked *[org]* may not be directly visible in the diff — verify the organizational control exists.
 
 ---
@@ -95,6 +95,7 @@ Items marked *[org]* may not be directly visible in the diff — verify the orga
 - [ ] TLS version is not downgraded below 1.2
 - [ ] WebSocket connections (if any) use WSS, not WS
 - [ ] API responses include appropriate security headers (HSTS, X-Content-Type-Options, etc.)
+- [ ] **No third-party tracking/ads/analytics scripts on pages that handle PHI** (Google Ads/AdSense, GTM/GA/gtag, Meta Pixel, Hotjar, etc.) — run `bin/scan-trackers.py` on the frontend. A tracker on an authenticated/PHI page discloses PHI to the vendor and is a **FAIL** unless a signed BAA exists *and* PHI is provably excluded from what is sent (HHS OCR online-tracking-technologies guidance)
 
 ---
 
@@ -159,5 +160,5 @@ Items marked *[org]* may not be directly visible in the diff — verify the orga
 For each item above, emit a structured marker:
 
 ```
-<!-- SECURE_ITEM:pass|warn|fail:§Section:Check Name:Detail about the finding -->
+<!-- SECURE_ITEM:pass|warn|fail|skip:§Section:Check Name:Detail about the finding -->
 ```

@@ -1,9 +1,9 @@
 ---
 name: token-discipline
-description: Reference: token-reduction conventions (subagent isolation, artifact compaction). Applied throughout; not usually invoked directly.
+description: Reference only (do NOT invoke as an action): token-reduction conventions (subagent isolation, artifact compaction). Applied throughout the other skills.
 ---
 
-<!-- GENERATED from commands/token-discipline.md by bin/build-codex-skills.py — do not edit here. -->
+<!-- GENERATED from reference/token-discipline.md by bin/build-codex-skills.py — do not edit here. -->
 
 # Token discipline — native context conventions for RePPITS
 
