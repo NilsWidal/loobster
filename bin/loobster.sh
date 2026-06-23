@@ -41,7 +41,8 @@ if [ "${1:-}" = "--still" ]; then
 fi
 
 cycles="${CYCLES:-12}"
-trap 'printf "\033[?25h%s"; echo' EXIT      # restore cursor on exit
+[[ "$cycles" =~ ^[0-9]+$ ]] || cycles=12     # ignore a non-numeric CYCLES
+trap 'printf "\033[?25h"; echo' EXIT         # restore cursor on exit
 printf '\033[?25l'                          # hide cursor
 i=0
 while [ "$i" -lt "$cycles" ]; do

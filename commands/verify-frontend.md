@@ -12,7 +12,7 @@ During Phase 5 (Test) of `/run`, inside the goal-loop's verify step, or standalo
    ```
    It writes PNGs to `.loobster/screens/` and **exits non-zero if a page 4xx/5xx's or logs console/page errors** — so a broken frontend BLOCKS the verify step (a real gate, not just pretty pictures). Requires `npm i -D playwright && npx playwright install chromium` in the target repo.
 4. **Attach to the PR — GitHub-native, no other accounts.** Two ways:
-   - **CI artifacts (default, zero repo clutter):** the `templates/playwright-verify.yml` workflow runs this on the PR and `upload-artifact`s `.loobster/screens/` — downloadable from the PR's **Checks** tab. It also posts a sticky PR comment with the result table + artifact link.
+   - **CI artifacts (default, zero repo clutter):** copy `${CLAUDE_PLUGIN_ROOT}/templates/playwright-verify.yml` into your repo's `.github/workflows/`; it runs this on the PR and `upload-artifact`s `.loobster/screens/` — downloadable from the PR's **Checks** tab. It also posts a sticky PR comment with the result table + artifact link.
    - **Inline images:** commit `.loobster/screens/*.png` to the PR branch and embed them in a PR comment via `https://raw.githubusercontent.com/<owner>/<repo>/<branch>/.loobster/screens/<file>.png`. Same repo, no external host. (Clean the dir on merge, or keep it on the branch only.)
 5. **Report.** Summarize: which views were captured, any failures (HTTP/console errors), and the attachment location. A failure is a **FAIL** for the Test/Secure gate.
 

@@ -4,34 +4,80 @@
 //
 //   node bin/screenshot.mjs --base http://localhost:3000 --paths / /login /dashboard
 //   node bin/screenshot.mjs --config .loobster/screens.json
+//   node bin/screenshot.mjs --help
 //
 // Requires Playwright in the target repo:  npm i -D playwright  &&  npx playwright install chromium
 // Writes PNGs to .loobster/screens/ (override with --out). Exits non-zero if a page errors,
 // so the loop/PR check can BLOCK on a broken frontend.
 
 import { mkdirSync, existsSync, readFileSync } from 'node:fs';
-import { chromium } from 'playwright';
 
-function arg(name, def) {
-  const i = process.argv.indexOf('--' + name);
-  if (i === -1) return def;
-  // collect following tokens until the next --flag
-  const vals = [];
-  for (let j = i + 1; j < process.argv.length && !process.argv[j].startsWith('--'); j++) vals.push(process.argv[j]);
-  return vals.length <= 1 ? (vals[0] ?? true) : vals;
+function usage() {
+  console.log(`screenshot.mjs — capture UI screenshots with Playwright
+
+Usage:
+  node bin/screenshot.mjs --base <url> --paths <p1> [p2 ...]   capture the given routes
+  node bin/screenshot.mjs --config <file.json>                 capture views from a config
+  node bin/screenshot.mjs --help
+
+Options:
+  --base <url>     base URL (default: $BASE_URL or http://localhost:3000)
+  --paths <p...>   one or more route paths to capture (default: /)
+  --config <file>  JSON with { "views": [{ "name", "path" }] }
+  --out <dir>      output directory (default: .loobster/screens)
+
+Requires: npm i -D playwright && npx playwright install chromium`);
 }
 
-const out = arg('out', '.loobster/screens');
-const base = arg('base', process.env.BASE_URL || 'http://localhost:3000');
-const configPath = arg('config', null);
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  usage();
+  process.exit(0);
+}
+
+// Returns the value tokens following --name (an array; empty if the flag is present
+// with no value), or undefined if the flag is absent. Never coerces to boolean.
+function argTokens(name) {
+  const i = process.argv.indexOf('--' + name);
+  if (i === -1) return undefined;
+  const vals = [];
+  for (let j = i + 1; j < process.argv.length && !process.argv[j].startsWith('--'); j++) vals.push(process.argv[j]);
+  return vals;
+}
+
+function strArg(name, def) {
+  const v = argTokens(name);
+  if (v === undefined) return def;
+  if (v.length === 0) { console.error(`error: --${name} requires a value`); usage(); process.exit(2); }
+  return v[0];
+}
+
+function listArg(name, def) {
+  const v = argTokens(name);
+  if (v === undefined) return def;
+  if (v.length === 0) { console.error(`error: --${name} requires at least one value`); usage(); process.exit(2); }
+  return v;
+}
+
+const out = strArg('out', '.loobster/screens');
+const base = strArg('base', process.env.BASE_URL || 'http://localhost:3000');
+const configPath = strArg('config', null);
 
 let views;
 if (configPath && existsSync(configPath)) {
   const cfg = JSON.parse(readFileSync(configPath, 'utf8'));
   views = cfg.views; // [{ name, path }]
 } else {
-  const paths = [].concat(arg('paths', ['/']));
+  const paths = listArg('paths', ['/']);
   views = paths.map((p) => ({ name: (p.replace(/[^\w-]+/g, '_') || 'home').replace(/^_|_$/g, '') || 'home', path: p }));
+}
+
+// Import Playwright lazily so --help and arg errors work without it installed.
+let chromium;
+try {
+  ({ chromium } = await import('playwright'));
+} catch {
+  console.error('error: Playwright is not installed. Run:\n  npm i -D playwright && npx playwright install chromium');
+  process.exit(2);
 }
 
 const viewports = [

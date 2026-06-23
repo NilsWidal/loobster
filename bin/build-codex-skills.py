@@ -17,6 +17,7 @@ import sys, re, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CMD = ROOT / "commands"
+REF = ROOT / "reference"          # shared reference docs (not slash commands)
 OUT = ROOT / ".agents" / "skills"
 
 # Trigger-oriented descriptions (Codex uses these for implicit invocation).
@@ -32,20 +33,24 @@ DESC = {
  "implement": "Implement a single planned issue, optionally inside a bounded autonomous loop. Use to execute one unit of an approved plan.",
  "review-code": "Review all uncommitted changes (the Test phase) in a SEPARATE verifier — never self-review. Use before securing/committing.",
  "secure": "Run the enabled compliance checklists (any of HIPAA / HITRUST / ISO 27001 / SOC 2) against the diff, separating code-verifiable findings from organizational controls. Always run before committing a sensitive change.",
- "backlog-scoring": "Reference: the RICE scoring convention for the goal-loop backlog. Used by the loop skill; not usually invoked directly.",
- "token-discipline": "Reference: token-reduction conventions (subagent isolation, artifact compaction). Applied throughout; not usually invoked directly.",
+ "backlog-scoring": "Reference only (do NOT invoke as an action): the RICE scoring convention for the goal-loop backlog. Read by the loop/make-plan skills.",
+ "token-discipline": "Reference only (do NOT invoke as an action): token-reduction conventions (subagent isolation, artifact compaction). Applied throughout the other skills.",
 }
 
 def rewrite(body: str) -> str:
-    body = re.sub(r"\$\{CLAUDE_PLUGIN_ROOT\}/commands/([a-z0-9-]+)\.md",
+    body = re.sub(r"\$\{CLAUDE_PLUGIN_ROOT\}/(?:commands|reference)/([a-z0-9-]+)\.md",
                   r".agents/skills/\1/SKILL.md", body)
     body = body.replace("${CLAUDE_PLUGIN_ROOT}/", "")
     return body
 
 def build():
-    files = sorted(CMD.glob("*.md"))
+    # Slash commands live in commands/; shared reference docs live in reference/.
+    # Both are mirrored into .agents/skills/ for Codex; the reference docs carry a
+    # "reference only" description so Codex doesn't invoke them as actions.
+    files = [(f, "commands") for f in sorted(CMD.glob("*.md"))]
+    files += [(f, "reference") for f in sorted(REF.glob("*.md"))]
     generated = {}
-    for f in files:
+    for f, src in files:
         name = f.stem
         desc = DESC.get(name, f"Loobster command: {name}.")
         body = rewrite(f.read_text(encoding="utf-8")).rstrip() + "\n"
@@ -54,7 +59,7 @@ def build():
             f"name: {name}\n"
             f"description: {desc}\n"
             "---\n\n"
-            f"<!-- GENERATED from commands/{name}.md by bin/build-codex-skills.py — do not edit here. -->\n\n"
+            f"<!-- GENERATED from {src}/{name}.md by bin/build-codex-skills.py — do not edit here. -->\n\n"
             f"{body}"
         )
         generated[name] = skill

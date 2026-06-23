@@ -38,7 +38,7 @@ title: Export is too hidden
 Any loop, agent, or person, when it notices something worth sharing:
 1. Choose `type`, a 1-line `title`, tags, and a 1–3 line body (a summary/pattern, **no PHI**).
 2. **Dedup first:** if an open signal with the same logical key already exists (same slug, `status` ≠ `archived`), **append a tally** to its body (`(count: N)`) and bump `confidence` instead of creating a duplicate. Cross-author dedup: two people noticing the same thing reinforce one signal.
-3. Otherwise write a new `signals/<id>.md` with the frontmatter above and `status: new`. Stamp `author` from the current user/agent.
+3. Otherwise write a new `signals/<id>.md` with the frontmatter above and `status: new`. Stamp `author` from the current user/agent. (Create the `signals/` directory on first emit if it doesn't exist yet.)
 
 ## Consume (symmetric read)
 A loop, in its Trigger/Investigate step:
@@ -53,7 +53,7 @@ A loop, in its Trigger/Investigate step:
 For loops that want fast filtering instead of grep, mirror each signal as a Claude Code Task with `metadata.kind="signal"` (+ the same fields). Files remain the source of truth; the Task mirror is a convenience index and is optional.
 
 ## Visualization
-Run `bin/signals-build.py` to regenerate `signals/data.js`, `signals/data.json`, and `signals/INDEX.md` from the `signals/*.md` files, then open `templates/signals-dashboard.html` (copy it next to `signals/`) for a live team-status board. Optionally publish it to GitHub Pages (see `.github/workflows/signals-pages.yml`) for a shared team URL — **private repo / non-PHI only**.
+Run `bin/signals-build.py` to regenerate `signals/data.js`, `signals/data.json`, and `signals/INDEX.md` from the `signals/*.md` files, then open `templates/signals-dashboard.html` (copy it next to `signals/`) for a live team-status board. Optionally publish it to GitHub Pages by copying `templates/signals-pages.yml` into your repo's `.github/workflows/` for a shared team URL — **private repo / non-PHI only**.
 
 ## Storage & compliance
 - `signals/` is **tracked (committed)** by default — the whole point is team visibility; signals sync via push/pull.

@@ -1,6 +1,6 @@
 # SOC2 Trust Service Criteria Checklist
 
-Review each item against the code diff. For each, assign: **PASS**, **WARN**, or **FAIL**.
+Review each item against the code diff. For each, assign: **PASS**, **WARN**, **FAIL**, or **SKIPPED** (for [org] or physical controls not verifiable from the diff).
 Items marked *[org]* may not be directly visible in the diff — verify the organizational control exists.
 Control IDs reference the 2017 Trust Service Criteria (TSC).
 
@@ -281,5 +281,5 @@ Control IDs reference the 2017 Trust Service Criteria (TSC).
 For each item above, emit a structured marker:
 
 ```
-<!-- SECURE_ITEM:pass|warn|fail:CC#.#:Check Name:Detail about the finding -->
+<!-- SECURE_ITEM:pass|warn|fail|skip:CC#.#:Check Name:Detail about the finding -->
 ```

@@ -11,10 +11,10 @@ no(){ echo "FAIL: $1"; FAIL=$((FAIL+1)); }
 # 1. Generated skills are in sync with commands/ (regeneration is a no-op).
 if python3 "$ROOT/bin/build-codex-skills.py" --check >/dev/null 2>&1; then ok "skills in sync with commands/"; else no "skills OUT OF SYNC — run bin/build-codex-skills.py"; fi
 
-# 2. One skill per command, each with name + description frontmatter.
-cmds=$(ls "$ROOT/commands"/*.md | wc -l | tr -d ' ')
+# 2. One skill per command + reference doc, each with name + description frontmatter.
+srcs=$(( $(ls "$ROOT/commands"/*.md | wc -l) + $(ls "$ROOT/reference"/*.md | wc -l) ))
 skills=$(ls -d "$ROOT/.agents/skills"/*/ 2>/dev/null | wc -l | tr -d ' ')
-[ "$cmds" = "$skills" ] && ok "one skill per command ($skills)" || no "command/skill count mismatch ($cmds vs $skills)"
+[ "$srcs" = "$skills" ] && ok "one skill per command/reference ($skills)" || no "source/skill count mismatch ($srcs vs $skills)"
 miss=0
 for s in "$ROOT/.agents/skills"/*/SKILL.md; do
   head -4 "$s" | grep -q "^name: " && head -4 "$s" | grep -q "^description: " || { miss=$((miss+1)); echo "  missing frontmatter: $s"; }

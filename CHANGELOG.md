@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.9.4 — Audit fixes: honest claims, a real lease, and a tracker compliance check
+
+A self-audit pass that closes the gaps between what the docs promised and what shipped.
+
+**Correctness / safety**
+- **Real CI.** Added `.github/workflows/` — `ci.yml` (runs the test suite + the `build-codex-skills.py --check` drift gate + `py_compile`), `codeql.yml` (backs the security badge), and `pages.yml` (publishes `docs/` to GitHub Pages, the advertised URL). There was previously no `.github/` at all.
+- **Loop durability survives a closed session.** `loop.md` now arms `CronCreate(..., durable: true)` (the default is in-memory and dies on session close) and passes the required `reason` to `ScheduleWakeup`.
+- **The single-runner lease is a real mutex.** New `bin/loop-lease.py` claims an atomic lock file (`O_CREAT|O_EXCL`), replacing the cooperative frontmatter convention; `loop.md` uses acquire/refresh/release. New `tests/test-loop-lease.sh`.
+- **`loop-rearm.py` fails OPEN** on a frontmatter-less marker (it was scanning the whole body, so a stray `status: active` prose line could wedge the session).
+- **`signals-build.py` no longer pollutes the cwd** when there's no `signals/` dir; added `--help`; PHI-flagged signals are now **quarantined** from the build by default (`--allow-flagged` to include), with broader PHI recall (named patients, record numbers); fixed a parser bug that ate the first bullet of list-led bodies.
+
+**Compliance**
+- **New: third-party tracker check** — `bin/scan-trackers.py` flags Google Ads/Analytics/GTM, Meta Pixel, Hotjar, etc. in the frontend. `/secure` treats a tracker on a PHI page as a HIPAA **FAIL** without a BAA (HHS OCR online-tracking-technologies guidance); SOC 2 = consent/disclosure WARN. Added to the HIPAA checklist (§164.312(e)). New `tests/test-scan-trackers.sh`.
+- All four checklists now define the **SKIPPED** status + marker grammar they always advertised.
+
+**headroom (Option D)**
+- Fixed the integration to call headroom's real `compress(messages, model=...)` API (it was passing a bare string → a silent no-op even when installed) and to handle its return shapes; corrected the package (`pip install "headroom-ai[code]"`) and repo link (`headroomlabs-ai/headroom`); corrected the "no network" note (ML compressors may fetch a model unless `HF_HUB_OFFLINE=1`).
+
+**Docs / packaging**
+- Reference docs (`backlog-scoring`, `token-discipline`) moved out of `commands/` into `reference/` so they no longer register as slash commands — the count is now genuinely **eleven**; cross-refs and the Codex skill generator updated.
+- `screenshot.mjs` handles `--help` and a missing Playwright install without an opaque crash, and validates flag values.
+- Fixed the docs deploy story (GitHub Pages primary; dead `cd site` → `cd docs`); softened the signals PHI "enforcement" wording to "best-effort lint"; removed dead `board-build.py`; `loobster.sh` / INDEX / naming polish.
+- AGENTS.md gained the `--auto`/`--manual`/`--autonomous` flag semantics, the autonomous-mode invariant, and the loop durability/lease story.
+- Tests: **45 passing** across 6 suites (was 25).
+
 ## 0.9.3 — Single-runner lease (concurrency-safe self-driving)
 
 - **Only one loop instance runs per worktree.** The marker now carries a `runner` + `runnerHeartbeatAt` lease, refreshed each cycle. On (re)entry, a loop checks the lease first: if a live runner holds it, the re-entry (a `ScheduleWakeup`/cron firing while an in-session run is active, or a parallel headless run on a shared worktree) **backs off and exits** instead of running a concurrent cycle and colliding on git/files. Only a stale/empty lease is taken over.

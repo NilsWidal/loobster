@@ -6,16 +6,26 @@ Reads a Claude Code PostToolUse hook payload on stdin and, *by default (set LOOB
 that pipes the tool's output through headroom's compressor before it enters the
 model's context window. In every other case it passes the output through unchanged.
 
+Install headroom to enable it:  pip install "headroom-ai[code]"  (import name: headroom).
+
 Design rules (see plans/autonomous-loops/00-parent-design-doc.md, slice 6):
   - ENABLED by default. Set LOOBSTER_HEADROOM=0 to disable (e.g. on PHI repos until reviewed).
   - GRACEFUL. Any missing dependency, parse error, or exception -> passthrough.
-  - LOCAL ONLY. Uses headroom's local `compress` (no network); never logs or
-    persists tool output itself. headroom's own CCR store (if the user enables it)
-    is the user's responsibility and is PHI-at-rest — see the README PHI caveat.
+  - LOCAL-FIRST. headroom runs locally and this hook never logs or persists tool
+    output itself. On a PHI repo note two caveats: (a) headroom's CCR store, if
+    enabled, keeps originals at rest (your responsibility); (b) headroom's ML
+    compressors may download a model from HuggingFace on first use unless
+    HF_HUB_OFFLINE=1. Keep LOOBSTER_HEADROOM=0 until headroom has a data-path review.
   - CHEAP. Skips small outputs (below LOOBSTER_HEADROOM_MIN_CHARS, default 2000).
 
+NOTE: headroom's compress() operates on a chat-messages array — compress(messages,
+model=...). This hook wraps the single tool output as one user message and extracts
+the compressed text back out (string, dict, or messages list). Validate against your
+installed headroom-ai version; this path needs a real integration test (the unit
+tests mock headroom and can't catch an API mismatch).
+
 Attribution: the compression mechanism is provided by headroom
-(https://github.com/chopratejas/headroom). This hook is glue, not a reimplementation.
+(https://github.com/headroomlabs-ai/headroom). This hook is glue, not a reimplementation.
 """
 import json
 import os
@@ -36,6 +46,27 @@ def _extract_text(tool_response):
             val = tool_response.get(key)
             if isinstance(val, str) and val:
                 return val
+    return None
+
+
+def _result_text(result):
+    """Pull compressed text out of headroom's return — str, dict, or messages list."""
+    if isinstance(result, str):
+        return result
+    if isinstance(result, dict):
+        if isinstance(result.get("content"), str):
+            return result["content"]
+        result = result.get("messages", result)
+    if isinstance(result, list) and result:
+        last = result[-1]
+        if isinstance(last, str):
+            return last
+        if isinstance(last, dict):
+            content = last.get("content")
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list):  # content blocks: [{type,text}, ...]
+                return "".join(b.get("text", "") for b in content if isinstance(b, dict))
     return None
 
 
@@ -69,10 +100,13 @@ def main():
     except Exception:
         _passthrough()
 
-    # 5. Compress. Any failure -> passthrough (never break the tool flow).
+    # 5. Compress. headroom.compress operates on a messages array; wrap the single
+    #    tool output as one message and pull the compressed text back out. Any
+    #    failure -> passthrough (never break the tool flow).
     try:
         model = os.environ.get("LOOBSTER_HEADROOM_MODEL", "claude-opus-4-8")
-        compressed = compress(text, model=model)
+        result = compress([{"role": "user", "content": text}], model=model)
+        compressed = _result_text(result)
         if not isinstance(compressed, str) or not compressed or len(compressed) >= len(text):
             _passthrough()
     except Exception:
