@@ -51,7 +51,7 @@ def _write_lock_excl(path, runner):
     except FileExistsError:
         return False
     with os.fdopen(fd, "w", encoding="utf-8") as f:
-        f.write(f"{runner}\n{time.time():.0f}\n")
+        f.write(f"{runner}\n{int(time.time())}\n")
     return True
 
 
@@ -89,7 +89,7 @@ def acquire(marker, runner, ttl):
 def _force_write(path, runner):
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
-        f.write(f"{runner}\n{time.time():.0f}\n")
+        f.write(f"{runner}\n{int(time.time())}\n")
     os.replace(tmp, path)
 
 
