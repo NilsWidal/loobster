@@ -11,7 +11,7 @@
 ```
 
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8957e5)
+![Runs in Claude Code + Codex](https://img.shields.io/badge/runs%20in-Claude%20Code%20%2B%20Codex-8957e5)
 ![version](https://img.shields.io/badge/version-0.9.4-3fb950)
 ![tests](https://img.shields.io/badge/tests-45%20passing-3fb950)
 ![compliance](https://img.shields.io/badge/compliance-4%20frameworks-8957e5)
@@ -23,7 +23,7 @@
 >
 > 📖 **Docs:** [**nilswidal.github.io/loobster**](https://nilswidal.github.io/loobster/) — a team-focused docs site (source in [`docs/`](docs/), served via GitHub Pages; see [`docs/DEPLOY.md`](docs/DEPLOY.md)).
 
-**Loobster** is a Claude Code plugin that turns AI-assisted development into a **repeatable, reviewable, secure loop**. It right-sizes each task, plans before it builds, can run autonomously between approval gates, and **proves its work with an independent verifier instead of trusting itself**. It coordinates whole teams through a shared signals hub, and runs the compliance frameworks you choose against every diff.
+**Loobster** is a cross-tool loop harness — it runs in **Claude Code** and **Codex** (and any agent that reads `AGENTS.md` / `.agents/skills`) — that turns AI-assisted development into a **repeatable, reviewable, secure loop**. It right-sizes each task, plans before it builds, can run autonomously between approval gates, and **proves its work with an independent verifier instead of trusting itself**. It coordinates whole teams through a shared signals hub, and runs the compliance frameworks you choose against every diff.
 
 Under the hood it follows the **RePPITS** method — Research, Propose, Plan, Implement, Test, Secure — created by [Mihail Eric](https://github.com/mihail911) ([the RePPIT framework](https://themodernsoftware.dev), from the creator of Stanford's first AI software engineering course). Healthcare (HIPAA/HITRUST) is one aspect, alongside ISO 27001 and SOC 2 — enable only what your repo needs.
 
@@ -111,7 +111,7 @@ The workflow adapts to the task instead of forcing every change through identica
 
 Loobster keeps the model's working context lean in two layers:
 
-1. **Native token discipline (always on, zero-dependency, portable).** `reference/token-discipline.md` bakes in subagent isolation (heavy reads happen in a subagent; only the conclusion returns), artifact compaction (pass summaries between phases, re-read files on demand), cache-stable prefixes, and terse output. This reduces tokens by *elimination and structure* — it works identically in Claude Code, the plugin, and a custom Agent SDK harness.
+1. **Native token discipline (always on, zero-dependency, portable).** `reference/token-discipline.md` bakes in subagent isolation (heavy reads happen in a subagent; only the conclusion returns), artifact compaction (pass summaries between phases, re-read files on demand), cache-stable prefixes, and terse output. This reduces tokens by *elimination and structure* — it works identically in Claude Code, Codex, and a custom Agent SDK harness.
 2. **Wire-level compression with [headroom](https://github.com/headroomlabs-ai/headroom) (Option D — on by default).** For real, automatic, every-read compression, Loobster ships headroom integration:
    - **Option D — bundled hook (Claude Code context), enabled by default.** The `PostToolUse` hook in `hooks/hooks.json` pipes large tool outputs through a locally-installed headroom — `pip install "headroom-ai[code]"` — via `bin/headroom-compress.py` before they enter context. It's **on by default** and a **no-op when headroom isn't installed**; set `LOOBSTER_HEADROOM=0` to disable — do this on PHI repos until headroom has had a data-path review.
    - **Option C — proxy / SDK middleware (any context, incl. Agent SDK).** Run `headroom proxy` and point your base URL at it, or use headroom's SDK middleware in your own harness.
@@ -190,7 +190,9 @@ Regenerate the skills after editing a command: `python3 bin/build-codex-skills.p
 
 ## Install
 
-### From the plugin marketplace (recommended)
+Same repo, two runtimes — pick your agent.
+
+### Claude Code (plugin marketplace)
 
 In Claude Code (≥ 1.0.33):
 
@@ -199,22 +201,25 @@ In Claude Code (≥ 1.0.33):
 /plugin install loobster@nilswidal-loobster
 ```
 
-That's it. The slash commands are immediately available.
-
-### From a local clone
+That's it. The slash commands are immediately available. To try local changes before pushing, clone first and add the path instead:
 
 ```bash
 git clone https://github.com/NilsWidal/loobster.git
 ```
-
-Then in Claude Code:
-
 ```
 /plugin marketplace add ./loobster
 /plugin install loobster@nilswidal-loobster
 ```
 
-Useful for trying changes before pushing.
+### Codex (and other `AGENTS.md` agents)
+
+No install step — the methodology and skills live in the repo itself. Clone Loobster (or vendor `AGENTS.md` + `.agents/skills/` into your own project), then:
+
+```bash
+codex            # then:  $run <task>   ·   $loop <goal>   ·   $secure
+```
+
+Codex reads `AGENTS.md` from the repo root automatically and exposes each command as a skill under `.agents/skills/`. See [Use with Codex](#use-with-codex) for the details (headroom on Codex, regenerating skills after edits).
 
 ## Quick start
 
@@ -230,7 +235,7 @@ or with a Linear issue:
 /run CAR-123
 ```
 
-The plugin walks Research → Propose → Plan → Implement → Test → Secure and pauses at each gate for your approval. You can also invoke any phase directly, e.g. `/secure` to audit current uncommitted changes without running the full flow.
+Loobster walks Research → Propose → Plan → Implement → Test → Secure and pauses at each gate for your approval. You can also invoke any phase directly, e.g. `/secure` to audit current uncommitted changes without running the full flow. (In Codex the same commands are `$run`, `$secure`, etc.)
 
 ## Compliance checklists — pick your frameworks
 
@@ -256,18 +261,18 @@ Drop `.claude/loobster-frameworks.json` in your repo to choose which run:
 
 ### Per-workspace overrides
 
-To customize a checklist for a specific repo, drop a file at `.claude/compliance/<framework>-checklist.md` in that workspace. `/secure` reads workspace overrides first, then falls back to the plugin's defaults.
+To customize a checklist for a specific repo, drop a file at `.claude/compliance/<framework>-checklist.md` in that workspace. `/secure` reads workspace overrides first, then falls back to Loobster's bundled defaults.
 
 ## Linear integration (optional)
 
-If the [Linear MCP](https://linear.app/docs/mcp) is configured in Claude Code, the plugin will:
+If the [Linear MCP](https://linear.app/docs/mcp) is configured in your agent (Claude Code or Codex), Loobster will:
 
 - Read issues mentioned in `/implement <issue-id>`
 - Save research and proposal documents as Linear documents
 - Create parent + sub-issue structures during `/make-plan`
 - Post review and security findings as comments on the relevant issue
 
-If Linear is not configured, the plugin falls back to local `.md` files in `research/`, `plans/`, and the conversation transcript. Both modes work end-to-end.
+If Linear is not configured, Loobster falls back to local `.md` files in `research/`, `plans/`, and the conversation transcript. Both modes work end-to-end.
 
 ## Credits
 
