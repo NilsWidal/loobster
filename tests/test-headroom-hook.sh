@@ -1,81 +1,99 @@
 #!/usr/bin/env bash
-# Tests for Option D — bin/headroom-compress.py (the headroom PostToolUse hook).
-# The hook is ENABLED BY DEFAULT: it compresses when a local headroom is importable,
-# no-ops (passthrough) when headroom isn't installed, and is disabled by LOOBSTER_HEADROOM=0.
-# Verifies: default-on compresses, kill switch, graceful passthrough, size threshold.
+# Tests for Option D — bin/headroom-compress.py (the token-compression PostToolUse hook).
+# Two tiers: Tier 1 = real headroom if importable; Tier 2 = pure-stdlib lite-crush
+# (bin/lite_crush.py), always available. ENABLED by default; LOOBSTER_HEADROOM=0 disables
+# both tiers, LOOBSTER_LITE_CRUSH=0 disables only Tier 2.
+# Verifies: lite-crush compresses with NO headroom installed, headroom is preferred and
+# its CompressResult object is handled, headroom failures fall back to lite-crush, kill
+# switches, size threshold, and graceful passthrough.
 set -u
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 HOOK="$ROOT/bin/headroom-compress.py"
 PASS=0
 FAIL=0
+TMP="$(mktemp -d)"
+trap 'python3 -c "import shutil,sys; shutil.rmtree(sys.argv[1], ignore_errors=True)" "$TMP"' EXIT
 
-big="$(python3 -c "print('x'*5000)")"
-payload="{\"tool_name\":\"Read\",\"tool_response\":{\"output\":\"$big\"}}"
-rmtree() { python3 -c "import shutil,sys; shutil.rmtree(sys.argv[1], ignore_errors=True)" "$1"; }
-
-# assert_empty <name> <env...> -- runs hook with given env, expects empty stdout + exit 0
-assert_empty() {
-  local name="$1"; shift
-  local out rc
-  out="$(echo "$payload" | env "$@" "$HOOK")"; rc=$?
-  if [ -z "$out" ] && [ "$rc" -eq 0 ]; then
-    echo "PASS: $name"; PASS=$((PASS+1))
-  else
-    echo "FAIL: $name (rc=$rc, out=${out:0:60})"; FAIL=$((FAIL+1))
-  fi
-}
-
-# mock headroom module — messages-based compress() like real headroom-ai (returns a
-# messages list). on PYTHONPATH.
-mock="$(mktemp -d)"
-cat > "$mock/headroom.py" <<'PY'
-def compress(messages, model=None):
-    text = messages[-1]["content"] if isinstance(messages, list) else str(messages)
-    return [{"role": "user", "content": "COMPRESSED:" + str(len(text))}]
+# --- build payloads (python avoids shell newline-escaping headaches) ---
+python3 - "$TMP" <<'PY'
+import json, os, sys
+tmp = sys.argv[1]
+def w(name, output):
+    open(os.path.join(tmp, name), "w").write(
+        json.dumps({"tool_name": "Read", "tool_response": {"output": output}}))
+w("dup.json", "repeated log line here\n" * 300)              # lite-crush CAN shrink
+w("uniq.json", "\n".join("unique-line-%04d" % i for i in range(400)))  # lite-crush CANNOT
+w("small.json", "tiny")                                       # below threshold
 PY
 
-# mock variant that returns a plain string (back-compat shape the adapter must also handle)
-mockstr="$(mktemp -d)"
+# --- mock headroom modules on PYTHONPATH ---
+mock="$TMP/mock"; mkdir -p "$mock"        # real-shape: compress() -> CompressResult object
+cat > "$mock/headroom.py" <<'PY'
+class CompressResult:
+    def __init__(self, messages):
+        self.messages = messages; self.tokens_saved = 0; self.compression_ratio = 1.0
+def compress(messages, model=None):
+    text = messages[-1]["content"] if isinstance(messages, list) else str(messages)
+    return CompressResult([{"role": "user", "content": "HRCOMPRESSED:" + str(len(text))}])
+PY
+mockstr="$TMP/mockstr"; mkdir -p "$mockstr"   # back-compat: compress() -> plain str
 cat > "$mockstr/headroom.py" <<'PY'
 def compress(messages, model=None):
     text = messages[-1]["content"] if isinstance(messages, list) else str(messages)
-    return "COMPRESSED:" + str(len(text))
+    return "HRCOMPRESSED:" + str(len(text))
+PY
+mockraise="$TMP/mockraise"; mkdir -p "$mockraise"  # headroom present but throws
+cat > "$mockraise/headroom.py" <<'PY'
+def compress(messages, model=None):
+    raise RuntimeError("boom")
 PY
 
-# 1. Default on, but headroom NOT installed -> passthrough (no-op without the dep).
-assert_empty "default on + headroom absent -> passthrough"
+ok(){ echo "PASS: $1"; PASS=$((PASS+1)); }
+no(){ echo "FAIL: $1"; FAIL=$((FAIL+1)); }
 
-# 2. Kill switch: LOOBSTER_HEADROOM=0 with headroom present -> passthrough (disabled).
-out="$(echo "$payload" | env LOOBSTER_HEADROOM=0 PYTHONPATH="$mock" "$HOOK")"; rc=$?
-if [ -z "$out" ] && [ "$rc" -eq 0 ]; then echo "PASS: LOOBSTER_HEADROOM=0 disables -> passthrough"; PASS=$((PASS+1)); else echo "FAIL: kill switch (rc=$rc, out=${out:0:60})"; FAIL=$((FAIL+1)); fi
+# expect_passthrough <name> <payload> [env...]
+expect_passthrough(){
+  local name="$1" pf="$TMP/$2"; shift 2
+  local out rc; out="$(env "$@" "$HOOK" < "$pf")"; rc=$?
+  if [ -z "$out" ] && [ "$rc" -eq 0 ]; then ok "$name"; else no "$name (rc=$rc out=${out:0:60})"; fi
+}
+# expect_compress <name> <payload> <needle> [env...]
+expect_compress(){
+  local name="$1" pf="$TMP/$2" needle="$3"; shift 3
+  local out rc; out="$(env "$@" "$HOOK" < "$pf")"; rc=$?
+  if [ "$rc" -eq 0 ] && echo "$out" | grep -q '"updatedToolOutput"' && echo "$out" | grep -q "$needle"; then
+    ok "$name"; else no "$name (rc=$rc out=${out:0:90})"; fi
+}
 
-# 3. Malformed stdin -> passthrough.
+# 1. DEFAULT on, headroom ABSENT -> lite-crush compresses (works with nothing installed).
+expect_compress "default-on + no headroom -> lite-crush" dup.json "loobster-crush"
+
+# 2. lite-crush can't shrink the output -> passthrough.
+expect_passthrough "lite-crush no gain -> passthrough" uniq.json
+
+# 3. Below size threshold -> passthrough.
+expect_passthrough "below threshold -> passthrough" small.json
+
+# 4. Kill switch LOOBSTER_HEADROOM=0 -> passthrough even with headroom present.
+expect_passthrough "LOOBSTER_HEADROOM=0 disables both tiers" dup.json LOOBSTER_HEADROOM=0 PYTHONPATH="$mock"
+
+# 5. LOOBSTER_LITE_CRUSH=0 + headroom absent -> passthrough (Tier 2 off, Tier 1 unavailable).
+expect_passthrough "LOOBSTER_LITE_CRUSH=0 + no headroom -> passthrough" dup.json LOOBSTER_LITE_CRUSH=0
+
+# 6. Tier 1 preferred: real CompressResult object is handled (this is the bug-fix guard).
+expect_compress "headroom CompressResult object -> used" dup.json "HRCOMPRESSED" PYTHONPATH="$mock"
+
+# 7. Back-compat: headroom returning a plain string still works.
+expect_compress "headroom str return -> used" dup.json "HRCOMPRESSED" PYTHONPATH="$mockstr"
+
+# 8. Tier 1 throws -> graceful fall-through to Tier 2 lite-crush.
+expect_compress "headroom raises -> lite-crush fallback" dup.json "loobster-crush" PYTHONPATH="$mockraise"
+
+# 9. Malformed stdin -> passthrough.
 out="$(echo 'not json' | "$HOOK")"; rc=$?
-if [ -z "$out" ] && [ "$rc" -eq 0 ]; then echo "PASS: malformed stdin -> passthrough"; PASS=$((PASS+1)); else echo "FAIL: malformed stdin (rc=$rc)"; FAIL=$((FAIL+1)); fi
+if [ -z "$out" ] && [ "$rc" -eq 0 ]; then ok "malformed stdin -> passthrough"; else no "malformed stdin (rc=$rc)"; fi
 
-# 4. Output below size threshold -> passthrough (even with headroom present).
-small='{"tool_name":"Read","tool_response":{"output":"tiny"}}'
-out="$(echo "$small" | env PYTHONPATH="$mock" "$HOOK")"; rc=$?
-if [ -z "$out" ] && [ "$rc" -eq 0 ]; then echo "PASS: below threshold -> passthrough"; PASS=$((PASS+1)); else echo "FAIL: below threshold (rc=$rc)"; FAIL=$((FAIL+1)); fi
-
-# 5. DEFAULT (no env) + headroom present -> COMPRESSES (proves it's on by default).
-out="$(echo "$payload" | env PYTHONPATH="$mock" "$HOOK")"; rc=$?
-if [ "$rc" -eq 0 ] && echo "$out" | grep -q '"updatedToolOutput"' && echo "$out" | grep -q 'COMPRESSED:'; then
-  echo "PASS: default-on + headroom -> updatedToolOutput"; PASS=$((PASS+1))
-else
-  echo "FAIL: default-on happy path (rc=$rc, out=${out:0:80})"; FAIL=$((FAIL+1))
-fi
-
-# 6. headroom returning a plain string (back-compat) -> still compresses.
-out="$(echo "$payload" | env PYTHONPATH="$mockstr" "$HOOK")"; rc=$?
-if [ "$rc" -eq 0 ] && echo "$out" | grep -q '"updatedToolOutput"' && echo "$out" | grep -q 'COMPRESSED:'; then
-  echo "PASS: str-returning headroom -> updatedToolOutput"; PASS=$((PASS+1))
-else
-  echo "FAIL: str-return path (rc=$rc, out=${out:0:80})"; FAIL=$((FAIL+1))
-fi
-
-rmtree "$mock"; rmtree "$mockstr"
 echo "----"
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.0 — Option D works with zero install (built-in lite-crush tier)
+
+- **Token compression now works out of the box — no `pip install` required.** Option D gained a **Tier 2** fallback: `bin/lite_crush.py`, a small, pure-stdlib, deterministic crusher (lossless whole-document JSON minify; marked collapse of repeated/blank lines; clamped over-long lines). It runs whenever headroom (Tier 1) isn't importable, so the hook is **no longer a silent no-op without headroom**. Wins are biggest on logs/JSON/repetitive output (~50–95%) and near-zero on prose/source (passthrough), where Tier 1's real compressors help more. Lossy edits are marked `[loobster-crush: …]` so the model never sees silent truncation. `LOOBSTER_LITE_CRUSH=0` disables only Tier 2; `LOOBSTER_HEADROOM=0` still disables everything.
+- **Fixed the headroom return-type bug 0.9.4 missed.** Real `headroom.compress()` returns a `CompressResult` **object** (`.messages`, `.tokens_saved`, `.compression_ratio`); the previous adapter only handled `str`/`dict`/`list`, so it fell through to passthrough **even with headroom installed**. The test mock returned a bare list (a shape the real API never returns), so CI stayed green over a dead path. `bin/headroom-compress.py` now reads `result.messages`, and `tests/test-headroom-hook.sh` exercises a real `CompressResult`-shaped mock plus the new lite-crush tiers. New `tests/test-lite-crush.sh`.
+- **Why not embed headroom itself?** Its compressors are a compiled Rust extension (`headroom._core`, built with maturin) behind a tiktoken + pydantic framework — there is no pure-Python subset to vendor, so the real mechanics genuinely require the install. lite-crush is independent loobster code inspired by the same idea, not a port. **Compliance note:** because the hook is on by default and now always compresses, a **first-party** crusher reads tool outputs (possible PHI) on every matching call even without headroom — `compliance/org-controls-audit.md` updated; set `LOOBSTER_HEADROOM=0` on PHI repos until reviewed.
+
 ## 0.9.4 — Audit fixes: honest claims, a real lease, and a tracker compliance check
 
 A self-audit pass that closes the gaps between what the docs promised and what shipped.

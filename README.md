@@ -12,7 +12,7 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 ![Runs in Claude Code + Codex](https://img.shields.io/badge/runs%20in-Claude%20Code%20%2B%20Codex-8957e5)
-![version](https://img.shields.io/badge/version-0.9.4-3fb950)
+![version](https://img.shields.io/badge/version-0.10.0-3fb950)
 ![tests](https://img.shields.io/badge/tests-45%20passing-3fb950)
 ![compliance](https://img.shields.io/badge/compliance-4%20frameworks-8957e5)
 ![security](https://img.shields.io/badge/security-CodeQL-2ea043)
@@ -112,13 +112,15 @@ The workflow adapts to the task instead of forcing every change through identica
 Loobster keeps the model's working context lean in two layers:
 
 1. **Native token discipline (always on, zero-dependency, portable).** `reference/token-discipline.md` bakes in subagent isolation (heavy reads happen in a subagent; only the conclusion returns), artifact compaction (pass summaries between phases, re-read files on demand), cache-stable prefixes, and terse output. This reduces tokens by *elimination and structure* — it works identically in Claude Code, Codex, and a custom Agent SDK harness.
-2. **Wire-level compression with [headroom](https://github.com/headroomlabs-ai/headroom) (Option D — on by default).** For real, automatic, every-read compression, Loobster ships headroom integration:
-   - **Option D — bundled hook (Claude Code context), enabled by default.** The `PostToolUse` hook in `hooks/hooks.json` pipes large tool outputs through a locally-installed headroom — `pip install "headroom-ai[code]"` — via `bin/headroom-compress.py` before they enter context. It's **on by default** and a **no-op when headroom isn't installed**; set `LOOBSTER_HEADROOM=0` to disable — do this on PHI repos until headroom has had a data-path review.
+2. **Wire-level output compression (Option D — on by default, two tiers).** The `PostToolUse` hook in `hooks/hooks.json` (`bin/headroom-compress.py`) shrinks large tool outputs before they enter context:
+   - **Tier 1 — [headroom](https://github.com/headroomlabs-ai/headroom), if installed.** `pip install "headroom-ai[code]"` ships the real compressors (a compiled Rust extension `headroom._core` + tiktoken); the hook prefers it when importable. headroom's mechanics are a native binary, so they **cannot be embedded** — this tier needs the install.
+   - **Tier 2 — built-in lite-crush (zero-install, always on).** `bin/lite_crush.py` is a small, pure-stdlib, deterministic crusher: lossless whole-document JSON minify, marked collapse of repeated/blank lines, and clamped over-long lines. It runs whenever Tier 1 is absent, so **compression works out of the box with nothing installed**. Biggest wins on logs/JSON/repetitive output (~50–95%); near-zero (passthrough) on prose/source, where Tier 1 helps more. Lossy edits are explicitly marked with `[loobster-crush: …]` so the model never sees silent truncation.
    - **Option C — proxy / SDK middleware (any context, incl. Agent SDK).** Run `headroom proxy` and point your base URL at it, or use headroom's SDK middleware in your own harness.
+   - `LOOBSTER_HEADROOM=0` disables **both** tiers; `LOOBSTER_LITE_CRUSH=0` disables only the built-in Tier 2.
 
-> **Gratitude & attribution.** The token-reduction design here adapts the mechanisms pioneered by [**headroom** (headroomlabs-ai/headroom)](https://github.com/headroomlabs-ai/headroom) — reversible-context retrieval (CCR), prefix stabilization (CacheAligner), and content-type-aware compression of what the model reads. The native conventions are a runtime-free interpretation of those ideas; Options C/D use headroom itself. Thank you to the headroom authors. A markdown plugin has no wire to intercept, so it cannot *be* a proxy or SDK middleware — replication is per-context (a hook covers Claude Code; middleware/proxy covers the Agent SDK), never universal.
+> **Gratitude & attribution.** The token-reduction design here adapts the mechanisms pioneered by [**headroom** (headroomlabs-ai/headroom)](https://github.com/headroomlabs-ai/headroom) — reversible-context retrieval (CCR), prefix stabilization (CacheAligner), and content-type-aware compression of what the model reads. The native conventions and `lite_crush.py` are a runtime-free interpretation of those ideas (independent loobster code, sharing none of headroom's source); Tier 1 and Option C use headroom itself (Apache-2.0). Thank you to the headroom authors. A markdown plugin has no wire to intercept, so it cannot *be* a proxy or SDK middleware — replication is per-context (a hook covers Claude Code; middleware/proxy covers the Agent SDK), never universal.
 >
-> **Healthcare caveat.** Enabling Option D or C puts a compressor in the **PHI data path** (it reads tool outputs that may contain PHI), and headroom's CCR stores originals locally (PHI-at-rest). Option D is on by default but **no-ops unless headroom is installed**; **disable it (`LOOBSTER_HEADROOM=0`) in PHI environments** until a data-path sign-off, and Option C is opt-in — see `compliance/org-controls-audit.md`.
+> **Healthcare caveat.** Because Option D is on by default, a compressor is in the **PHI data path** whenever the hook fires: Tier 2 (lite-crush) is **first-party, local-only, no network, no disk writes**, and marks lossy edits — but it *is* a transform over tool outputs that may contain PHI. Tier 1 additionally introduces a **third party** (headroom) and PHI-at-rest via headroom's CCR store. In PHI environments, **set `LOOBSTER_HEADROOM=0`** to disable all compression until a data-path sign-off (or `LOOBSTER_LITE_CRUSH=0` to drop only the first-party tier while reviewing headroom). See `compliance/org-controls-audit.md`.
 
 ## Goal-loop mode
 

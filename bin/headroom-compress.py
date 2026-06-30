@@ -1,31 +1,42 @@
 #!/usr/bin/env python3
 """
-loobster Option D — headroom PostToolUse compression hook.
+loobster Option D — token-compression PostToolUse hook (two tiers).
 
-Reads a Claude Code PostToolUse hook payload on stdin and, *by default (set LOOBSTER_HEADROOM=0 to disable) when a local headroom install is available*, returns an `updatedToolOutput`
-that pipes the tool's output through headroom's compressor before it enters the
-model's context window. In every other case it passes the output through unchanged.
+Reads a Claude Code PostToolUse hook payload on stdin and returns an
+`updatedToolOutput` that shrinks a tool's output before it enters the model's context
+window. It is ENABLED by default (set LOOBSTER_HEADROOM=0 to disable, e.g. on PHI repos
+until reviewed) and compresses in two tiers:
 
-Install headroom to enable it:  pip install "headroom-ai[code]"  (import name: headroom).
+  Tier 1 — real headroom, if installed. `pip install "headroom-ai[code]"` ships the
+           genuine compressors (a compiled Rust extension `headroom._core` + tiktoken +
+           pydantic). headroom's real mechanics CANNOT be embedded as pure Python, so
+           this tier only runs when the package is importable. Preferred when present.
+  Tier 2 — lite-crush, always available. A small, pure-stdlib, deterministic crusher
+           (bin/lite_crush.py) — no install, no network, no model. Runs whenever Tier 1
+           is absent or didn't help. This is what makes compression work out of the box.
+  Else   — passthrough (original output unchanged).
 
 Design rules (see plans/autonomous-loops/00-parent-design-doc.md, slice 6):
-  - ENABLED by default. Set LOOBSTER_HEADROOM=0 to disable (e.g. on PHI repos until reviewed).
-  - GRACEFUL. Any missing dependency, parse error, or exception -> passthrough.
-  - LOCAL-FIRST. headroom runs locally and this hook never logs or persists tool
-    output itself. On a PHI repo note two caveats: (a) headroom's CCR store, if
-    enabled, keeps originals at rest (your responsibility); (b) headroom's ML
-    compressors may download a model from HuggingFace on first use unless
-    HF_HUB_OFFLINE=1. Keep LOOBSTER_HEADROOM=0 until headroom has a data-path review.
+  - ENABLED by default. LOOBSTER_HEADROOM=0 disables BOTH tiers. LOOBSTER_LITE_CRUSH=0
+    disables only Tier 2 (keep headroom-only behavior).
+  - GRACEFUL. Any missing dependency, parse error, or exception -> passthrough; a Tier 1
+    failure falls through to Tier 2; never breaks the tool flow.
+  - LOCAL-FIRST. Both tiers run locally and this hook never logs or persists tool output.
+    PHI note: because it is on by default, tool outputs (possible PHI) flow through a
+    compressor whenever this hook fires — Tier 2 is first-party and pure-local; Tier 1
+    adds a third party (headroom) to the data path. headroom's ML compressors may also
+    download a model from HuggingFace on first use unless HF_HUB_OFFLINE=1. Keep
+    LOOBSTER_HEADROOM=0 until the data path has had a review on PHI repos.
   - CHEAP. Skips small outputs (below LOOBSTER_HEADROOM_MIN_CHARS, default 2000).
 
-NOTE: headroom's compress() operates on a chat-messages array — compress(messages,
-model=...). This hook wraps the single tool output as one user message and extracts
-the compressed text back out (string, dict, or messages list). Validate against your
-installed headroom-ai version; this path needs a real integration test (the unit
-tests mock headroom and can't catch an API mismatch).
+headroom's compress() returns a CompressResult object (`.messages`, `.tokens_saved`,
+`.compression_ratio`); `_headroom_text` extracts the compressed text from `.messages`
+(and still tolerates str/dict/list shapes for older versions and test mocks).
 
-Attribution: the compression mechanism is provided by headroom
-(https://github.com/headroomlabs-ai/headroom). This hook is glue, not a reimplementation.
+Attribution: Tier 1's compression is provided by headroom
+(https://github.com/headroomlabs-ai/headroom, Apache-2.0) — this hook is glue, not a
+reimplementation. Tier 2 (lite_crush) is independent loobster code inspired by the same
+"compress what the model reads" idea; it shares none of headroom's source.
 """
 import json
 import os
@@ -49,29 +60,72 @@ def _extract_text(tool_response):
     return None
 
 
-def _result_text(result):
-    """Pull compressed text out of headroom's return — str, dict, or messages list."""
-    if isinstance(result, str):
-        return result
-    if isinstance(result, dict):
-        if isinstance(result.get("content"), str):
-            return result["content"]
-        result = result.get("messages", result)
-    if isinstance(result, list) and result:
-        last = result[-1]
-        if isinstance(last, str):
-            return last
-        if isinstance(last, dict):
-            content = last.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list):  # content blocks: [{type,text}, ...]
-                return "".join(b.get("text", "") for b in content if isinstance(b, dict))
+def _message_text(messages):
+    """Pull the text content out of a messages list (last message)."""
+    if isinstance(messages, list) and messages:
+        last = messages[-1]
+        content = last.get("content") if isinstance(last, dict) else last
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):  # content blocks: [{type,text}, ...]
+            return "".join(b.get("text", "") for b in content if isinstance(b, dict))
     return None
 
 
+def _headroom_text(result):
+    """Pull compressed text out of headroom's return value.
+
+    Real headroom-ai returns a CompressResult object exposing `.messages`. We also
+    accept a bare messages list, a plain string, or a dict (older versions / test mocks).
+    """
+    messages = getattr(result, "messages", None)
+    if messages is None:
+        if isinstance(result, str):
+            return result
+        if isinstance(result, dict):
+            if isinstance(result.get("content"), str):
+                return result["content"]
+            messages = result.get("messages")
+        elif isinstance(result, list):
+            messages = result
+    text = _message_text(messages)
+    if text is not None:
+        return text
+    return result if isinstance(result, str) else None
+
+
+def _shorter(candidate, original):
+    return isinstance(candidate, str) and candidate and len(candidate) < len(original)
+
+
+def _headroom_compress(text):
+    """Tier 1: real headroom if importable. Returns compressed str or None."""
+    try:
+        from headroom import compress  # type: ignore
+    except Exception:
+        return None
+    try:
+        model = os.environ.get("LOOBSTER_HEADROOM_MODEL", "claude-opus-4-8")
+        result = compress([{"role": "user", "content": text}], model=model)
+        return _headroom_text(result)
+    except Exception:
+        return None
+
+
+def _lite_compress(text):
+    """Tier 2: pure-stdlib lite-crush. Returns compressed str or None."""
+    if os.environ.get("LOOBSTER_LITE_CRUSH", "1") in ("0", "false", "off"):
+        return None
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from lite_crush import crush  # type: ignore
+        return crush(text)
+    except Exception:
+        return None
+
+
 def main():
-    # 1. Enabled by default; LOOBSTER_HEADROOM=0 disables (e.g. PHI repos pre-review).
+    # 1. Enabled by default; LOOBSTER_HEADROOM=0 disables both tiers.
     if os.environ.get("LOOBSTER_HEADROOM", "1") in ("0", "false", "off"):
         _passthrough()
 
@@ -81,8 +135,7 @@ def main():
     except Exception:
         _passthrough()
 
-    tool_response = payload.get("tool_response")
-    text = _extract_text(tool_response)
+    text = _extract_text(payload.get("tool_response"))
     if not text:
         _passthrough()
 
@@ -94,25 +147,14 @@ def main():
     if len(text) < min_chars:
         _passthrough()
 
-    # 4. Capability-detect headroom. Absent -> passthrough.
-    try:
-        from headroom import compress  # type: ignore
-    except Exception:
+    # 4. Tier 1 (headroom) preferred; fall through to Tier 2 (lite-crush).
+    compressed = _headroom_compress(text)
+    if not _shorter(compressed, text):
+        compressed = _lite_compress(text)
+    if not _shorter(compressed, text):
         _passthrough()
 
-    # 5. Compress. headroom.compress operates on a messages array; wrap the single
-    #    tool output as one message and pull the compressed text back out. Any
-    #    failure -> passthrough (never break the tool flow).
-    try:
-        model = os.environ.get("LOOBSTER_HEADROOM_MODEL", "claude-opus-4-8")
-        result = compress([{"role": "user", "content": text}], model=model)
-        compressed = _result_text(result)
-        if not isinstance(compressed, str) or not compressed or len(compressed) >= len(text):
-            _passthrough()
-    except Exception:
-        _passthrough()
-
-    # 6. Substitute the compressed text for what the model sees.
+    # 5. Substitute the compressed text for what the model sees.
     out = {
         "hookSpecificOutput": {
             "hookEventName": "PostToolUse",
