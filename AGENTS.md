@@ -31,9 +31,9 @@ Per-repo, enable any of **HIPAA / HITRUST / ISO 27001 / SOC 2** via `.claude/loo
 
 ## Token discipline
 
-Subagent context-isolation + artifact compaction are always on (see the `token-discipline` skill). For automatic wire-level compression with [headroom](https://github.com/headroomlabs-ai/headroom) (`pip install "headroom-ai[code]"`):
-- **In Codex / Agent SDK:** use headroom's **proxy / middleware** (Option C) — run `headroom proxy` and point the model base URL at it. (Codex has no PostToolUse hook, so the Claude-Code hook below does not apply here.)
-- **In Claude Code:** the bundled `PostToolUse` hook (Option D) is on by default; `LOOBSTER_HEADROOM=0` disables it. On PHI repos, set `LOOBSTER_HEADROOM=0` until headroom has had a data-path review.
+Subagent context-isolation + artifact compaction are always on (see the `token-discipline` skill). Automatic wire-level output compression (Option D) has two tiers:
+- **In Claude Code:** the bundled `PostToolUse` hook (Option D) is on by default. **Tier 1** uses [headroom](https://github.com/headroomlabs-ai/headroom) (`pip install "headroom-ai[code]"`) when importable; **Tier 2** is a built-in, pure-stdlib crusher (`bin/lite_crush.py`) that runs with nothing installed, so compression works out of the box (best on logs/JSON, ~0% on source). `LOOBSTER_HEADROOM=0` disables both tiers; `LOOBSTER_LITE_CRUSH=0` disables only Tier 2. On PHI repos, set `LOOBSTER_HEADROOM=0` until the data path (a first-party crusher by default; headroom adds a third party) has had a review.
+- **In Codex / Agent SDK:** no PostToolUse hook exists, so use headroom's **proxy / middleware** (Option C) — run `headroom proxy` and point the model base URL at it.
 
 ## Regenerating the skills
 

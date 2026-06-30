@@ -63,12 +63,12 @@ These controls **cannot be verified from code diffs**. They require manual verif
 
 ## Token-compression hook (Option D, on by default) — data-path control
 
-Loobster ships a token-compression hook (`hooks/hooks.json` → `bin/headroom-compress.py`) that is **enabled by default** and routes large tool outputs through a locally-installed [headroom](https://github.com/chopratejas/headroom) before they reach the model. **Because it is on by default, a third-party compressor is in the PHI data path whenever headroom is installed** — this must be treated as an organizational control. On PHI repos, **set `LOOBSTER_HEADROOM=0` until headroom has had a data-path review** (it is a no-op if headroom is not installed).
+Loobster ships a token-compression hook (`hooks/hooks.json` → `bin/headroom-compress.py`) that is **enabled by default** and runs large tool outputs through a compressor before they reach the model. It has two tiers: **Tier 2** (`bin/lite_crush.py`) is **first-party, pure-stdlib, local-only — no network, no disk writes** — and runs even when nothing is installed; **Tier 1** is a locally-installed [headroom](https://github.com/headroomlabs-ai/headroom), preferred when importable. **Because it is on by default, a compressor reads tool outputs (possible PHI) on every matching tool call** — this must be treated as an organizational control. Note that, unlike previous versions, the hook is **no longer a no-op without headroom**: the first-party crusher always runs. On PHI repos, **set `LOOBSTER_HEADROOM=0` to disable all compression** until a data-path review (or `LOOBSTER_LITE_CRUSH=0` to drop only the first-party tier while headroom is reviewed).
 
 | Control | Requirement | How to Verify | Status | Last Verified |
 |---------|-------------|---------------|--------|---------------|
-| 05.i / §164.308(b) | The default-on compression hook is covered by a security review and (if it processes PHI) a BAA or local-only attestation | In PHI environments, set `LOOBSTER_HEADROOM=0` unless headroom is reviewed; headroom runs locally (no network) — verify the version in use and that its CCR original-store is encrypted/GC'd per policy | ON by default | |
-| 04.a | Running the default-on hook on PHI is a reviewed, documented decision | Verify the PHI-at-rest implications of headroom's CCR store are addressed, or that `LOOBSTER_HEADROOM=0` is set on PHI repos | | |
+| 05.i / §164.308(b) | The default-on compression hook is covered by a security review and (if it processes PHI) a BAA or local-only attestation | In PHI environments, set `LOOBSTER_HEADROOM=0` unless reviewed. Tier 2 (lite-crush) is first-party and network-free; Tier 1 (headroom, if installed) runs locally — verify the headroom version and that its CCR original-store is encrypted/GC'd per policy | ON by default | |
+| 04.a | Running the default-on hook on PHI is a reviewed, documented decision | Verify that the first-party crusher reading tool outputs is acceptable, and the PHI-at-rest implications of headroom's CCR store (Tier 1) are addressed — or that `LOOBSTER_HEADROOM=0` is set on PHI repos | | |
 
 ---
 

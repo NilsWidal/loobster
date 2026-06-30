@@ -2,7 +2,7 @@
 
 Shared conventions that keep token usage low *without* any runtime dependency, so they work identically in Claude Code, the plugin, and a custom Agent SDK harness. These are the always-on **Option A** practices referenced by the phase commands. They reduce tokens by **elimination and structure**, not by wire-level compression.
 
-> Attribution: these conventions adapt the *mechanisms* pioneered by [headroom](https://github.com/chopratejas/headroom) (chopratejas/headroom) — reversible-context retrieval, prefix stability, and compressing what the model reads — to a runtime-free, prompt-level form. For real wire-level compression (AST-aware code/JSON compressors, the kompress prose model), see the optional Option D hook and the Option C proxy/SDK-middleware recipe in the README.
+> Attribution: these conventions adapt the *mechanisms* pioneered by [headroom](https://github.com/headroomlabs-ai/headroom) (headroomlabs-ai/headroom) — reversible-context retrieval, prefix stability, and compressing what the model reads — to a runtime-free, prompt-level form. For real wire-level compression (AST-aware code/JSON compressors, the kompress prose model), see the Option D hook and the Option C proxy/SDK-middleware recipe in the README.
 
 ## 1. Subagent isolation (the biggest lever)
 When a step must read a lot to produce a little — codebase research, reviewing a wide diff, evaluating checklists across many files — delegate the heavy reading to a subagent (`Agent` / `Explore`) and bring back only the **conclusion**.
@@ -25,4 +25,4 @@ Don't gratuitously rewrite stable context (the orchestration preamble, system co
 - On routine/mechanical steps, prefer lower reasoning effort; reserve deep effort for the hard judgment (proposal design, adversarial Secure verification).
 
 ## Ceiling (be honest)
-These conventions cover the reads you deliberately route through a subagent or a file. They do **not** compress large raw blobs that must stay live in the main context, and they are advisory (the orchestrator must actually follow them). For automatic, every-read compression, enable the optional Option D hook (Claude Code context) or run headroom as a proxy/SDK middleware (Option C).
+These conventions cover the reads you deliberately route through a subagent or a file. They do **not** compress large raw blobs that must stay live in the main context, and they are advisory (the orchestrator must actually follow them). For automatic, every-read compression, Option D is on by default in Claude Code — a built-in pure-stdlib crusher (`bin/lite_crush.py`, zero install) with an optional headroom upgrade (`pip install "headroom-ai[code]"`) — or run headroom as a proxy/SDK middleware (Option C) outside Claude Code.
