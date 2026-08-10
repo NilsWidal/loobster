@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/hooks.schema.json",
   "_comment": "Option D — token compression, ENABLED BY DEFAULT, two tiers. Tier 1: a locally-installed headroom (preferred when importable). Tier 2: the built-in pure-stdlib crusher bin/lite_crush.py, which runs with nothing installed — so compression works out of the box (it is NOT a no-op without headroom). LOOBSTER_HEADROOM=0 disables both tiers; LOOBSTER_LITE_CRUSH=0 disables only Tier 2. Healthcare note: because it is on by default, tool outputs (possible PHI) flow through a compressor on every matching call — Tier 2 is first-party and local-only, Tier 1 adds a third party (headroom). On PHI repos set LOOBSTER_HEADROOM=0 until the data path has had a review (see README). See plans/autonomous-loops/00-parent-design-doc.md (slice 6).",
-  "_comment_stop": "loop-rearm — keeps an active goal-loop (plans/loop/<slug>.md status: active) running to a real exit condition instead of stopping at a milestone. Best-effort safety net for interactive runs; honors stop_hook_active (no infinite loops) and LOOBSTER_LOOP_REARM=0; fails open. Hard crashes (API connection drop) are covered by the durable driver, not this hook.",
+  "_comment_stop": "loop-rearm — keeps an active goal-loop (plans/loop/<slug>.md status: active) running to a real exit condition instead of stopping at a milestone. Re-blocks repeatedly, bounded by a progress counter (LOOBSTER_LOOP_REARM_MAX consecutive no-progress nudges, default 5, reset when the marker cycle/heartbeat advances) — so it cannot loop forever, but it is no longer one-nudge-only. Kill switch LOOBSTER_LOOP_REARM=0; fails open. Hard crashes (API connection drop) are covered by the durable driver, not this hook.",
   "hooks": {
     "PostToolUse": [
       {

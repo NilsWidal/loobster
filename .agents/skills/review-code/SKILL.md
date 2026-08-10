@@ -7,7 +7,7 @@ description: Review all uncommitted changes (the Test phase) in a SEPARATE verif
 
 Perform a comprehensive review of all uncommitted changes.
 
-> **Independent review — never self-verify.** This review MUST be run by a **separate verifier subagent** (`Agent`) that did not write the code. The implementing agent does not review its own work. Spawn a judge with the diff + what to check; it returns only findings. (See the "Never self-verify" rule in `run.md`.)
+> **Independent review — never self-verify.** This review MUST be run by a **separate verifier subagent** (`Agent`) that did not write the code. The implementing agent does not review its own work. Spawn a judge with the diff + what to check; it returns only findings. (See the "Never self-verify" rule in `run.md`.) Apply the `verify` model preference from `.claude/loobster.json` when spawning the judge (see run.md "Preferred subagents"); no config → inherit the session model.
 
 ## What this does
 - Gathers and reviews all uncommitted changes in the current branch
