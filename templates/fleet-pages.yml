@@ -1,0 +1,79 @@
+# Loobster fleet dashboard → GitHub Pages (TEMPLATE — copy into .github/workflows/)
+#
+# Publishes ONE team dashboard aggregating every goal-loop across ALL recent
+# branches (pr-lane loops live on feature branches, so scanning branches is the
+# point) plus the signals hub. Runs entirely on GitHub — Actions is the runtime,
+# Pages is the UI, git is the only data plane. No servers.
+#
+# The dashboard is editable with no backend: paste a fine-grained PAT into the
+# page (stored in the viewer's browser only) and Pause / Resume / Stop buttons
+# commit `status:` edits to the loop marker on its branch; loops adopt upstream
+# marker edits at their next cycle (loop.md "remote control").
+#
+# NOTE — one Pages site per repo: if you already use signals-pages.yml, use THIS
+# workflow instead of it. It publishes the fleet board at /  and the signals
+# board at /signals/.
+#
+# ⚠️  COMPLIANCE — READ BEFORE ENABLING
+#   GitHub Pages serves content publicly on a PUBLIC repo. Loop goals, outcomes,
+#   and signals are non-PHI by rule, but on a public repo your *business* state
+#   would be world-readable. Only enable for:
+#     • a PRIVATE repo with **private** GitHub Pages (GitHub Enterprise/Team), or
+#     • a non-sensitive project where public visibility is acceptable.
+#   NEVER enable on a public repo handling PHI-adjacent work.
+#   See compliance/org-controls-audit.md.
+#
+# Setup: Settings → Pages → Source: "GitHub Actions". Copy this file to
+#        .github/workflows/fleet-pages.yml and commit.
+
+name: Fleet dashboard (Pages)
+
+on:
+  push:
+    branches: ["**"]
+    paths: ["plans/loop/**", "signals/**"]
+  schedule:
+    - cron: "17 * * * *"   # hourly: refreshes branch-recency pruning + ages
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # fleet-build reads markers from every branch
+
+      - name: Fetch all branch refs
+        run: git fetch origin '+refs/heads/*:refs/remotes/origin/*' --prune
+
+      - name: Build fleet dashboard (all recent branches)
+        run: python3 bin/fleet-build.py --out _site --days 14
+
+      - name: Build signals board at /signals/ (if the hub exists)
+        run: |
+          if [ -d signals ]; then
+            python3 bin/signals-build.py signals --strict
+            mkdir -p _site/signals
+            cp templates/signals-dashboard.html _site/signals/index.html
+            cp signals/data.js signals/data.json _site/signals/ 2>/dev/null || true
+          fi
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

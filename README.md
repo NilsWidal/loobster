@@ -12,8 +12,8 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 ![Runs in Claude Code + Codex](https://img.shields.io/badge/runs%20in-Claude%20Code%20%2B%20Codex-8957e5)
-![version](https://img.shields.io/badge/version-0.12.1-3fb950)
-![tests](https://img.shields.io/badge/tests-80%20passing-3fb950)
+![version](https://img.shields.io/badge/version-0.13.0-3fb950)
+![tests](https://img.shields.io/badge/tests-86%20passing-3fb950)
 ![compliance](https://img.shields.io/badge/compliance-4%20frameworks-8957e5)
 ![security](https://img.shields.io/badge/security-CodeQL-2ea043)
 
@@ -49,6 +49,7 @@ It stands on two foundations: **[RePPIT](https://themodernsoftware.dev)** (Mihai
 | **Autonomous mode** | At Gate 3, "run autonomously" drives Implement → Test → Secure on its own (fix loop: cap 3, then a fresh resolver, then escalate; the final commit/push stops for approval — or becomes an async PR gate in a goal-loop's `pr-lane`) |
 | **Goal-loop** | `/loop` interviews you once (scope, done-criteria, delivery mode), then works a RICE-scored backlog — optionally **your Linear project** (`--linear`) — cycle after cycle: crash-safe, and would-be stops climb a resolver ladder (fresh subagent → park & continue) before any human pause |
 | **Live status board** | `plans/loop/status.html` — a self-contained page regenerated each cycle from the durable loop files; works across Claude Code / Codex / Cursor (`bin/loop-status.py`) |
+| **Fleet dashboard** | One **GitHub Pages** board for the whole team, aggregating every loop across **all recent branches** — with Pause / Resume / Stop buttons that commit marker edits back (no server, git is the only data plane) |
 | **External driver** | `bin/loobster-drive.sh` re-invokes any agent CLI while a loop is `active` — the durability layer for Codex/Cursor/overnight, gate-respecting |
 | **Preferred subagents** | `.claude/loobster.json` routes delegation roles to models (e.g. Opus for act, a different model for verify — cross-model judging) |
 | **Signals hub** | `/signals` — a shared team hub: any loop/teammate emits observations, any loop consumes them, with a dynamic dashboard |
@@ -192,6 +193,15 @@ flowchart LR
 ## Watch it run — the status board
 
 Every goal-loop maintains a **live, cross-tool status board**: `bin/loop-status.py build` renders `plans/loop/status.html` — a single self-contained page (no network, no deps, auto-refreshes every 30s) showing each loop's goal, status pill (active / paused / done), cycle, runner-lease freshness, backlog progress bar, delivery mode, Linear project, and last outcome. The loop regenerates it at **every cycle checkpoint**, and it's built purely from the durable marker + lock files — so it shows the same truth whether the loop is being driven by **Claude Code, Codex, Cursor, or the external driver**, and keeps working when the agent is mid-crash (a stale page is visibly stale: ages are computed client-side). Terminal version: `bin/loop-status.py`. This is deliberately **not** a chat artifact — a status page tied to one vendor's chat UI can't report on a loop running in another tool.
+
+## The team's central thing — on GitHub, not on a server
+
+Every team eventually asks: *should our agents and engineers talk to some hosted hub?* Loobster's answer is that the hub already exists — **GitHub is the server**. Copy [`templates/fleet-pages.yml`](templates/fleet-pages.yml) into `.github/workflows/` and you get **one Pages URL for the whole team**:
+
+- **Every loop, every branch.** `bin/fleet-build.py` reads `plans/loop/*.md` markers straight out of git for **all branches with recent activity** (`--days`, default 14) — which matters because `pr-lane` loops live on feature branches, not main. Markers inherited from a fork point are deduped to the branch where the loop actually checkpoints. The signals hub is published alongside at `/signals/`.
+- **Live-enough, honestly.** The board rebuilds on every marker/signal push plus hourly; ages are computed in the viewer's browser, so a stale page is visibly stale rather than confidently wrong.
+- **Editable with zero backend.** Paste a fine-grained PAT into the page (stored only in that browser) and the **Pause / Resume / Stop** buttons commit a `status:` edit to the marker *on its branch* via the GitHub API. Loops check `origin` for upstream marker edits at every cycle trigger and obey them as if set locally — so a teammate can stop a loop running on your machine from their phone, asynchronously, with the whole exchange audit-logged as commits.
+- **No new data path.** Actions is the runtime, Pages is the UI, git is the only transport — nothing leaves GitHub, so the local-first/compliance posture is unchanged. (One Pages site per repo: this workflow **replaces** `signals-pages.yml` and serves both boards. Same visibility caveat: private Pages needs GitHub Enterprise/Team; never enable on a public repo with sensitive business state.)
 
 ## Driving a loop from outside — `loobster-drive`
 
