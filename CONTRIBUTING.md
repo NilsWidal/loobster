@@ -12,6 +12,7 @@ commands/
   run.md             — orchestrator slash command for the full workflow
   loop.md        — /loop (goal-loop)
   signals.md            — /signals (shared team hub)
+  team-setup.md         — /team-setup (one-command GitHub team wiring)
   verify-frontend.md    — /verify-frontend (Playwright verification)
   backlog-scoring.md    — RICE scoring convention (shared)
   token-discipline.md   — token conventions (shared)
