@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.1 — Patch: ship the loop.md claims fix to installed plugins
+
+- Version bump so the plugin installer (which is version-gated) picks up the README-cleanup PR's `loop.md` correction: the escalation summary said "never auto-pushes", which contradicted the `pr-lane` delivery mode authorized elsewhere in the same file — now "never lands anything on the default branch without a human." Doc-truth fix only; no behavior change.
+
 ## 0.12.0 — Interview once, then don't stop: goal intake, Linear-backed backlog, resolve-before-escalate
 
 Three upgrades aimed at one outcome: after a single upfront clarification, the loop should not need you again unless something genuinely requires a human.
