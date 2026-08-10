@@ -6,7 +6,7 @@ It implements the **RePPITS** method — Research → Propose → Plan → Imple
 
 ## How to run it
 
-- **Codex / `.agents/skills` agents:** invoke a skill explicitly (`/skills` or `$run`) or let it trigger implicitly. The skills are `run`, `loop`, `signals`, `verify-frontend`, `research-codebase`, `make-proposals`, `make-plan`, `implement`, `review-code`, `secure`, `resume` (plus `token-discipline` and `backlog-scoring`, which are **reference docs in `reference/`** read by the skills above — not invoked directly).
+- **Codex / `.agents/skills` agents:** invoke a skill explicitly (`/skills` or `$run`) or let it trigger implicitly. The skills are `run`, `loop`, `signals`, `team-setup`, `verify-frontend`, `research-codebase`, `make-proposals`, `make-plan`, `implement`, `review-code`, `secure`, `resume` (plus `token-discipline` and `backlog-scoring`, which are **reference docs in `reference/`** read by the skills above — not invoked directly).
 - **Claude Code:** the same files run as plugin commands (`/loobster:run`, etc.).
 - Start with **`run`** for a feature/change end-to-end; **`loop`** for a continuous goal-loop; **`signals`** to coordinate across loops/people.
 - **The `loop` skill interviews once, then self-serves.** Goal intake (one round: scope, definition of done, constraints, delivery mode `pr-lane`/`interactive`) is the only designed question moment; after it, would-be stops climb a ladder — act-loop cap → fresh resolver subagent → park-and-continue — reaching the human only for a surviving sensitive FAIL, an all-parked backlog, or an interactive commit gate. `--linear <project>` makes a Linear project the backlog's source of truth (seed, per-cycle sync, issue-state moves).

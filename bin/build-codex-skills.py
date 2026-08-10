@@ -26,6 +26,7 @@ DESC = {
  "loop": "Run a continuous goal-loop: work a prioritized RICE-scored backlog toward a standing goal, cycle after cycle, consuming/emitting signals. Use for ongoing autonomous improvement toward a goal; not for a single discrete task (use run).",
  "resume": "Resume a paused, interrupted, or crashed RePPITS workflow by reconstructing state from tasks. Use when continuing prior workflow work after a break.",
  "signals": "Emit or consume cross-loop signals (observations / frictions / opportunities) in the shared signals/ store. Use to record a finding for other loops or teammates, or to read relevant ones before deciding. PHI must never go in a signal.",
+ "team-setup": "Wire a repo for Loobster's team layer in one command: vendor the fleet dashboard workflow + the scripts it runs in CI, scaffold signals/ and plans/loop/, and enable GitHub Pages via gh (refusing on public repos unless explicitly overridden). Use when onboarding a repo to the team features.",
  "verify-frontend": "Verify UI changes by capturing Playwright screenshots and attaching them to the PR (GitHub-native, no third-party hosts). Use when a change touches the frontend.",
  "research-codebase": "Document the existing codebase exactly as it is today (no suggestions, no fixes). Use as the first phase, before proposing changes.",
  "make-proposals": "Generate up to two solution proposals grounded in prior research (with architecture diagrams). Use after research, before planning.",

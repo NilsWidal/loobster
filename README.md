@@ -103,17 +103,24 @@ or with a Linear issue:
 /run CAR-123
 ```
 
+Onboarding a repo for a **team**? One command wires the whole GitHub layer — fleet dashboard on Pages, signals hub, CI scripts vendored in — and it lands as a reviewable PR:
+
+```
+/team-setup
+```
+
 Loobster walks Research → Propose → Plan → Implement → Test → Secure and pauses at each gate for your approval. You can also invoke any phase directly, e.g. `/secure` to audit current uncommitted changes without running the full flow. (In Codex the same commands are `$run`, `$secure`, etc.)
 
 ## What you get
 
-Eleven slash commands, available in Claude Code, Cursor, **Codex**, and any client that supports the Claude Code plugin spec or the `AGENTS.md` / `.agents/skills` convention (two shared reference docs — `backlog-scoring` and `token-discipline` — live in `reference/`, not as commands):
+Twelve slash commands, available in Claude Code, Cursor, **Codex**, and any client that supports the Claude Code plugin spec or the `AGENTS.md` / `.agents/skills` convention (two shared reference docs — `backlog-scoring` and `token-discipline` — live in `reference/`, not as commands):
 
 | Command | What it does |
 |---|---|
 | `/run <topic-or-issue>` | Run the full Research → Propose → Plan → Implement → Test → Secure workflow, with explicit approval gates between phases |
 | `/loop <goal>` | Run a continuous goal-loop: work down a prioritized backlog toward a standing goal, learning each cycle (wraps `/run` as its "act" step) |
 | `/signals` | Shared signals hub: any loop/teammate emits observations to a committed `signals/` store, any loop consumes the relevant ones (team coordination on one codebase) |
+| `/team-setup` | One-command GitHub team wiring: vendor the fleet dashboard workflow + the scripts it runs in CI, scaffold `signals/`, enable Pages via `gh` (refuses on public repos unless explicitly overridden) |
 | `/verify-frontend` | Verifiable frontend layer: when a change touches the UI, capture Playwright screenshots and attach them to the PR (GitHub-native, no other accounts) |
 | `/research-codebase` | Document the existing codebase exactly as it is today (no suggestions, no RCA) |
 | `/make-proposals` | Generate up to two solution proposals grounded in research |
@@ -196,7 +203,7 @@ Every goal-loop maintains a **live, cross-tool status board**: `bin/loop-status.
 
 ## The team's central thing — on GitHub, not on a server
 
-Every team eventually asks: *should our agents and engineers talk to some hosted hub?* Loobster's answer is that the hub already exists — **GitHub is the server**. Copy [`templates/fleet-pages.yml`](templates/fleet-pages.yml) into `.github/workflows/` and you get **one Pages URL for the whole team**:
+Every team eventually asks: *should our agents and engineers talk to some hosted hub?* Loobster's answer is that the hub already exists — **GitHub is the server**. Run **`/team-setup`** and you get **one Pages URL for the whole team**: it vendors [`templates/fleet-pages.yml`](templates/fleet-pages.yml) *plus the scripts it runs in CI* into your repo, scaffolds `signals/`, and enables Pages via `gh` — refusing on a public repo unless you explicitly accept the visibility (`--public-ok`). One command, then a PR:
 
 - **Every loop, every branch.** `bin/fleet-build.py` reads `plans/loop/*.md` markers straight out of git for **all branches with recent activity** (`--days`, default 14) — which matters because `pr-lane` loops live on feature branches, not main. Markers inherited from a fork point are deduped to the branch where the loop actually checkpoints. The signals hub is published alongside at `/signals/`.
 - **Live-enough, honestly.** The board rebuilds on every marker/signal push plus hourly; ages are computed in the viewer's browser, so a stale page is visibly stale rather than confidently wrong.

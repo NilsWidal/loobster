@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.0 — /team-setup: team-ready in one command
+
+0.13.0 made GitHub the team hub — but wiring a repo up was manual (copy a template, click Settings → Pages) and, worse, quietly incomplete: `fleet-pages.yml` runs `bin/fleet-build.py` and `bin/signals-build.py` from the **repo checkout inside Actions**, where the plugin install directory doesn't exist — so a hand-copied workflow failed on its first run unless you knew to vendor the scripts too.
+
+- **New `/team-setup` + `bin/team-init.sh`** — one command wires a repo for the team layer: vendors the workflow **and** the scripts it runs (`bin/fleet-build.py`, `bin/signals-build.py`, `templates/signals-dashboard.html`), each stamped `vendored from loobster vX.Y.Z` (re-run with `--force` after a plugin upgrade to refresh); scaffolds `signals/` + `plans/loop/`; and enables Pages via `gh api` (Source: GitHub Actions) — the Settings click disappears.
+- **The visibility caveat became a gate.** On a non-private repo the script *refuses* to enable Pages (exit 3) instead of relying on a ⚠️ comment; `--public-ok` is an explicit, human-confirmed override, and the slash command tells the agent to ask the human before passing it. See `compliance/org-controls-audit.md`.
+- **`--protect-main`** (optional) requires one approving PR review on the default branch — pairs with `pr-lane` loops, where the PR review *is* the human gate.
+- **Degrades honestly.** No `gh` / no auth / no remote → files are still vendored and the one remaining manual step is printed. Re-runs skip existing files without `--force`. Warns when a leftover `signals-pages.yml` is present (one Pages site per repo; the fleet board replaces it). `--dry-run` previews everything, writes nothing, calls nothing.
+- Tests: new `tests/test-team-init.sh` (vendoring + version stamps, idempotency, public-repo refusal and `--public-ok` override via a fake `gh`, private-repo Pages + protection calls, dry-run, exit codes). **98 passing** across 11 suites.
+
 ## 0.13.0 — The fleet dashboard: the team's central thing, on GitHub, not on a server
 
 Answers "should agents + engineers talk to a hosted hub?" with: the hub already exists — GitHub is the server. No new data path, no SaaS, no self-hosted service.
