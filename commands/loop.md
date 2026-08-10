@@ -89,4 +89,4 @@ This is the single place to *see* what every loop is doing and how it's schedule
 
 ## Resuming & compliance
 - Resumable: goal + backlog + learnings are durable (Tasks + `plans/loop/<slug>.md`); `TaskList` for the `goalId` reconstructs progress — continue from the highest-scored open item (see `/resume`).
-- Never bypasses RePPITS gates for sensitive items, never skips Secure, never auto-pushes — it produces commits/PRs that still hit the final approval, or it escalates.
+- Never bypasses RePPITS gates for sensitive items, never skips Secure, never lands anything on the default branch without a human — every change hits the final approval interactively, or arrives as a `pr-lane` feature-branch PR for asynchronous review, or it escalates.
