@@ -17,7 +17,8 @@ signals — the marker's goal/outcome lines are team-visible text).
 
 Frontmatter keys used (all optional except status/goalId): status, goalId, goal,
 cycle, maxCycles, runner, runnerHeartbeatAt, reentry, backlogOpen,
-backlogInProgress, backlogDone, lastOutcome.
+backlogInProgress, backlogDone, backlogBlocked, lastOutcome, deliveryMode,
+linearProject.
 """
 import glob
 import html
@@ -134,6 +135,12 @@ def print_terminal(loops, root):
         counts = [fm.get(k) for k in ("backlogOpen", "backlogInProgress", "backlogDone")]
         if any(c is not None for c in counts):
             bits.append("backlog open/wip/done: " + "/".join(c or "0" for c in counts))
+        if fm.get("backlogBlocked"):
+            bits.append(f"parked: {fm['backlogBlocked']}")
+        if fm.get("deliveryMode"):
+            bits.append(f"delivery: {fm['deliveryMode']}")
+        if fm.get("linearProject"):
+            bits.append(f"linear: {fm['linearProject']}")
         print("  ".join(bits))
         if fm.get("goal"):
             print(f"    goal: {fm['goal']}")
@@ -218,9 +225,18 @@ def build_html(loops, root):
             # rather than letting one bad value kill every future board build.
             o, w, d = (_to_int(c) or 0 for c in counts)
             total = max(1, o + w + d)
+            parked = _to_int(fm.get("backlogBlocked"))
+            parked_txt = f' &middot; <b class="paused">{parked}</b> parked' if parked else ""
             backlog = (f'<div class="kv">backlog: <b>{o}</b> open &middot; <b>{w}</b> in progress '
-                       f'&middot; <b>{d}</b> done</div>'
+                       f'&middot; <b>{d}</b> done{parked_txt}</div>'
                        f'<div class="bar"><i style="width:{100 * d // total}%"></i></div>')
+        extra = []
+        if fm.get("deliveryMode"):
+            extra.append(f'delivery <b>{html.escape(fm["deliveryMode"])}</b>')
+        if fm.get("linearProject"):
+            extra.append(f'linear <b>{html.escape(fm["linearProject"])}</b>')
+        if extra:
+            backlog += f'<div class="kv">{" &middot; ".join(extra)}</div>'
         outcome = ""
         if fm.get("lastOutcome"):
             outcome = f'<div class="kv">last: <b>{html.escape(fm["lastOutcome"])}</b></div>'

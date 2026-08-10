@@ -12,7 +12,7 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 ![Runs in Claude Code + Codex](https://img.shields.io/badge/runs%20in-Claude%20Code%20%2B%20Codex-8957e5)
-![version](https://img.shields.io/badge/version-0.11.0-3fb950)
+![version](https://img.shields.io/badge/version-0.12.0-3fb950)
 ![tests](https://img.shields.io/badge/tests-80%20passing-3fb950)
 ![compliance](https://img.shields.io/badge/compliance-4%20frameworks-8957e5)
 ![security](https://img.shields.io/badge/security-CodeQL-2ea043)
@@ -47,7 +47,7 @@ It stands on two foundations: **[RePPIT](https://themodernsoftware.dev)** (Mihai
 | **Structured workflow** | Research → Propose → Plan → Implement → Test → Secure (the RePPITS method), with explicit approval gates |
 | **Adaptive gating** | Phase-0 right-sizing (trivial / standard / sensitive) chooses which gates apply; sensitive never auto-advances |
 | **Autonomous mode** | At Gate 3, "run autonomously" drives Implement → Test → Secure on its own (bounded loop, cap 3, escalate; final commit/push always stops) |
-| **Goal-loop** | `/loop` works a prioritized RICE-scored backlog toward a standing goal, cycle after cycle — **crash-safe** (reclaims interrupted tasks) and runs to a real exit condition, never pausing at a milestone |
+| **Goal-loop** | `/loop` interviews you once (scope, done-criteria, delivery mode), then works a RICE-scored backlog — optionally **your Linear project** (`--linear`) — cycle after cycle: crash-safe, and would-be stops climb a resolver ladder (fresh subagent → park & continue) before any human pause |
 | **Live status board** | `plans/loop/status.html` — a self-contained page regenerated each cycle from the durable loop files; works across Claude Code / Codex / Cursor (`bin/loop-status.py`) |
 | **External driver** | `bin/loobster-drive.sh` re-invokes any agent CLI while a loop is `active` — the durability layer for Codex/Cursor/overnight, gate-respecting |
 | **Preferred subagents** | `.claude/loobster.json` routes delegation roles to models (e.g. Opus for act, a different model for verify — cross-model judging) |
@@ -132,10 +132,11 @@ Drop `.claude/loobster.json` (example: `reference/loobster.example.json`) to cho
 { "subagents": {
     "act":      { "model": "opus"   },
     "verify":   { "model": "sonnet" },
-    "research": { "model": "haiku"  } } }
+    "research": { "model": "haiku"  },
+    "resolver": { "model": "opus"   } } }
 ```
 
-Every phase command reads it before spawning an `Agent`: route the expensive thinking (a strong model for **act**), keep mechanical **research** reads cheap, and — the underrated one — make **verify** a *different* model than act, so the never-self-verify rule gains capability-independence, not just context-independence (a cross-model judge doesn't share the builder's blind spots). No file → every subagent inherits the session model.
+Every phase command reads it before spawning an `Agent`: route the expensive thinking (a strong model for **act**), keep mechanical **research** reads cheap, and — the underrated one — make **verify** a *different* model than act, so the never-self-verify rule gains capability-independence, not just context-independence (a cross-model judge doesn't share the builder's blind spots). **`resolver`** is the clean-context agent that takes over a capped-out fix loop with a different approach before any human escalation — give it your strongest model; it only runs when the act model is already stuck. No file → every subagent inherits the session model.
 
 ## Token reduction
 
@@ -173,8 +174,11 @@ flowchart LR
     class Goal,Done term
 ```
 
-- **Backlog = Claude Code Tasks + metadata.** Items are scored with a model-set **RICE** estimate (`(reach × impact × confidence) / effort`); the loop always works the highest-scored open item and re-scores each cycle (see `reference/backlog-scoring.md`).
-- **Goal = free text, model-judged.** The model judges met / partial / not-met against your free-text success criteria each cycle.
+- **Goal intake — one interview, then autonomy.** At kickoff the loop asks a *single* round of clarifying questions (scope, definition of done, constraints, and **delivery mode**) and records the answers in the marker. After that it deliberately never interviews you again — that's the point of asking once, properly. Skip with `--no-intake`.
+- **Delivery mode — `pr-lane` vs `interactive`.** Grant `pr-lane` at intake and the loop commits to feature branches, pushes, and opens PRs on its own (**never the default branch**) — the commit gate becomes an async PR review instead of a blocking stop, and the loop keeps working the next item while you review. `interactive` keeps the classic stop-and-ask approval.
+- **The no-stop ladder (resolve before escalate).** A would-be stop climbs: bounded act loop (cap 3) → a **fresh resolver subagent** with clean context and a different/configured model, told to try a *different approach* (cap 2, independently verified) → **park the item and continue** the backlog → human. The human rung is reached only for a **sensitive Secure FAIL that survived the resolver** (compliance is never laddered away), an all-parked backlog, or an interactive commit gate.
+- **Backlog = Claude Code Tasks + metadata — or your Linear project.** Items are scored with a model-set **RICE** estimate (`(reach × impact × confidence) / effort`); the loop always works the highest-scored open item and re-scores each cycle (see `reference/backlog-scoring.md`). With **`--linear <project>`** (Linear MCP required), **Linear owns what work exists**: the backlog seeds from the project's open issues, re-syncs every cycle (externally closed/reassigned issues drop out), picked issues move to In Progress, `pr-lane` completions land as In Review with the PR linked, and newly discovered work is filed as real issues — so your team watches the loop's queue in Linear itself.
+- **Goal = free text, model-judged.** The model judges met / partial / not-met against the intake's success criteria each cycle.
 - **Bounded & resumable.** Cycle cap + optional token budget; escalates on a stuck item, a sensitive Secure FAIL, or a budget spike; the backlog is durable so the loop resumes after a crash. Compliance gates and Secure are never bypassed; nothing auto-pushes.
 - **Enable compression for loops.** A goal-loop re-reads code every cycle, so we **recommend turning on Option D** (`LOOBSTER_HEADROOM=1`, see Token reduction above) — the repeated code reads are exactly headroom's AST-aware `CodeCompressor` sweet spot.
 
@@ -303,6 +307,7 @@ If the [Linear MCP](https://linear.app/docs/mcp) is configured in your agent (Cl
 - Save research and proposal documents as Linear documents
 - Create parent + sub-issue structures during `/make-plan`
 - Post review and security findings as comments on the relevant issue
+- **Run a whole goal-loop against a Linear project** — `/loop <goal> --linear <project>` seeds the backlog from the project's open issues, re-syncs every cycle, moves issues through In Progress → In Review/Done as the loop works, and files newly discovered work as real issues (see Goal-loop mode)
 
 If Linear is not configured, Loobster falls back to local `.md` files in `research/`, `plans/`, and the conversation transcript. Both modes work end-to-end.
 

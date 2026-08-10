@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.12.0 — Interview once, then don't stop: goal intake, Linear-backed backlog, resolve-before-escalate
+
+Three upgrades aimed at one outcome: after a single upfront clarification, the loop should not need you again unless something genuinely requires a human.
+
+- **Goal intake (Setup step 0).** `/loop` now asks ONE round of clarifying questions at kickoff — scope, definition of done, constraints, and **delivery mode** — records the answers in the marker, and never interviews you again. `--no-intake` (or a headless kickoff) skips it. Previously the loop wrote its own success criteria for ambiguous goals and burned cycles on its own interpretation.
+- **Delivery mode: `pr-lane` vs `interactive`.** The blocking commit/push approval was the loop's most common legitimate stop. Granting **`pr-lane`** at intake converts it to an async gate: the loop commits to a feature branch, pushes, opens a PR (**never the default branch**), links it on the Linear issue, and keeps working the next item — the PR review *is* the human approval. `interactive` (default when intake didn't run) keeps the classic stop. AGENTS.md rule 6 updated to say this honestly: a human still approves every landing; nothing ever reaches the default branch without one.
+- **Resolve-before-escalate ladder.** A would-be stop now climbs: bounded act loop (cap 3) → **fresh resolver subagent** — clean context, `resolver` model from `.claude/loobster.json` (else a different model than act), explicitly told to try a *different approach*, cap 2, independently verified → **park the item and continue** the backlog (blocked Task + Linear comment + signal) → human. The human rung remains only for: a **sensitive Secure FAIL that survived the resolver** (compliance is never laddered away), an all-parked backlog, an interactive commit gate, or a budget spike. Wired into `loop.md`, `run.md` (Phase 6: cap 3 → resolver 2 → escalate, total bound 5), and AGENTS.md rule 5.
+- **Linear-backed backlog (`--linear <project>`).** Linear becomes the backlog's source of truth: seed from the project's open issues (RICE-scored locally, `metadata.linearId` linkage), re-sync each cycle (externally closed/reassigned issues drop out — Linear wins), picked issues → **In Progress**, `pr-lane` completions → **In Review** with the PR linked, direct completions → **Done**, blocked items get a comment stating exactly what's needed, and newly discovered work is filed as real issues. Falls back to local Tasks (with a notice) when the MCP is absent.
+- **Status board** shows the new state: delivery mode, Linear project, and a parked-items count (`backlogBlocked`), in both the terminal view and `status.html`.
+- New `resolver` role in `reference/loobster.example.json`.
+
 ## 0.11.0 — Loops that actually keep looping (durability audit) + status board + external driver + subagent routing
 
 A focused pass on "why does the loop keep stopping?". Four root causes found and fixed:
