@@ -23,6 +23,9 @@ maxCycles: 10
 backlogOpen: 5
 backlogInProgress: 1
 backlogDone: 7
+backlogBlocked: 2
+deliveryMode: pr-lane
+linearProject: CAR
 lastOutcome: cycle 4 partial
 ---
 criteria
@@ -37,8 +40,10 @@ d="$(mkfix)"
 out="$(python3 "$STATUS" --root "$d")"; rc=$?
 { [ "$rc" = 0 ] && echo "$out" | head -1 | grep -q '\[active\]' \
   && echo "$out" | grep -q 'cycle 4/10' && echo "$out" | grep -q 'sess-a (fresh' \
-  && echo "$out" | grep -q '5/1/7' && echo "$out" | grep -q '\[done\]'; } \
-  && ok "terminal status (active first, lease, backlog)" || no "terminal status" "rc=$rc out=$out"
+  && echo "$out" | grep -q '5/1/7' && echo "$out" | grep -q 'parked: 2' \
+  && echo "$out" | grep -q 'delivery: pr-lane' && echo "$out" | grep -q 'linear: CAR' \
+  && echo "$out" | grep -q '\[done\]'; } \
+  && ok "terminal status (active first, lease, backlog, delivery, linear)" || no "terminal status" "rc=$rc out=$out"
 
 # 2. build writes a self-contained status.html containing both goals + refresh meta.
 out="$(python3 "$STATUS" build --root "$d")"; rc=$?
