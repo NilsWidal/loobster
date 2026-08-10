@@ -12,8 +12,8 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 ![Runs in Claude Code + Codex](https://img.shields.io/badge/runs%20in-Claude%20Code%20%2B%20Codex-8957e5)
-![version](https://img.shields.io/badge/version-0.10.0-3fb950)
-![tests](https://img.shields.io/badge/tests-45%20passing-3fb950)
+![version](https://img.shields.io/badge/version-0.11.0-3fb950)
+![tests](https://img.shields.io/badge/tests-80%20passing-3fb950)
 ![compliance](https://img.shields.io/badge/compliance-4%20frameworks-8957e5)
 ![security](https://img.shields.io/badge/security-CodeQL-2ea043)
 
@@ -48,6 +48,9 @@ It stands on two foundations: **[RePPIT](https://themodernsoftware.dev)** (Mihai
 | **Adaptive gating** | Phase-0 right-sizing (trivial / standard / sensitive) chooses which gates apply; sensitive never auto-advances |
 | **Autonomous mode** | At Gate 3, "run autonomously" drives Implement → Test → Secure on its own (bounded loop, cap 3, escalate; final commit/push always stops) |
 | **Goal-loop** | `/loop` works a prioritized RICE-scored backlog toward a standing goal, cycle after cycle — **crash-safe** (reclaims interrupted tasks) and runs to a real exit condition, never pausing at a milestone |
+| **Live status board** | `plans/loop/status.html` — a self-contained page regenerated each cycle from the durable loop files; works across Claude Code / Codex / Cursor (`bin/loop-status.py`) |
+| **External driver** | `bin/loobster-drive.sh` re-invokes any agent CLI while a loop is `active` — the durability layer for Codex/Cursor/overnight, gate-respecting |
+| **Preferred subagents** | `.claude/loobster.json` routes delegation roles to models (e.g. Opus for act, a different model for verify — cross-model judging) |
 | **Signals hub** | `/signals` — a shared team hub: any loop/teammate emits observations, any loop consumes them, with a dynamic dashboard |
 | **Configurable compliance** | Enable any of **HIPAA · HITRUST · ISO 27001 · SOC 2** per repo — healthcare is a profile, not a requirement |
 | **Token discipline** | Subagent isolation + artifact compaction always on; optional [headroom](https://github.com/headroomlabs-ai/headroom) compression |
@@ -105,14 +108,41 @@ The workflow adapts to the task instead of forcing every change through identica
 - **Autonomous convergence loop.** When Secure finds FAILs, the Implement→Test→Secure fix loop self-drives (no gate between iterations) up to a **cap of 3**, then escalates to a human — it never silently commits past unresolved FAILs.
 - **Capability tiers.** The same workflow degrades gracefully across runtimes: Tier 0 (always-on, markdown-only) → Tier 1 (parallel independent sub-issues via subagents) → Tier 2 (deterministic Workflow harness, opt-in; tracked as a follow-up).
 - **Resumable.** Plan-phase work is recorded as Claude Code Tasks with a real status lifecycle, so `/resume` can rebuild and continue after a crash or a new session.
-- **Self-healing, self-driving loops.** `/loobster:loop <goal>` arms its **own** durable re-entry (a `ScheduleWakeup`/cron that re-invokes itself) — no need to wrap it in a separate scheduler — and **prints the schedule it armed** on kickoff (cron expression, cadence, job id, how to cancel), just like the `/loop` skill. Ask **`/loobster:loop status`** anytime to see the schedule, backlog, and readiness. It heartbeats each in-progress task and checkpoints every cycle, so a dead turn (API drop, crash, stop) is reclaimed and resumed — not lost. A **single-runner lease** keeps only one instance looping per worktree, so a wakeup/cron re-entry (or a parallel run) **backs off instead of colliding** — self-driving is concurrency-safe via an **atomic lock file** (`bin/loop-lease.py`, claimed with `O_CREAT|O_EXCL`), even on a shared worktree. A bundled Stop hook (`bin/loop-rearm.py`) keeps an active loop from stopping at a milestone, while leaving approval gates (`status: paused`) sacred. `LOOBSTER_LOOP_REARM=0` to disable the hook.
+- **Self-healing, self-driving loops.** `/loobster:loop <goal>` arms its **own** durable re-entry (a `ScheduleWakeup`/cron that re-invokes itself) — no need to wrap it in a separate scheduler — and **prints the schedule it armed** on kickoff (cron expression, cadence, job id, how to cancel), just like the `/loop` skill. Ask **`/loobster:loop status`** anytime to see the schedule, backlog, and readiness. It heartbeats each in-progress task and checkpoints every cycle, so a dead turn (API drop, crash, stop) is reclaimed and resumed — not lost. A **single-runner lease** keeps only one instance looping per worktree, so a wakeup/cron re-entry (or a parallel run) **backs off instead of colliding** — self-driving is concurrency-safe via an **atomic lock file** (`bin/loop-lease.py`, claimed with `O_CREAT|O_EXCL`, TTL sized to a full cycle so a long act step never looks dead mid-work), even on a shared worktree. A bundled Stop hook (`bin/loop-rearm.py`) keeps an active loop from stopping at a milestone — **re-blocking repeatedly, bounded by a progress counter** (default 5 consecutive no-progress nudges, resetting whenever the cycle advances), not the old one-nudge-then-die — while leaving approval gates (`status: paused`) sacred; and a gate is a **held breath, not an exit**: when the human answers, the loop flips the marker back to `active` and continues. `LOOBSTER_LOOP_REARM=0` to disable the hook.
+
+## Watch it run — the status board
+
+Every goal-loop maintains a **live, cross-tool status board**: `bin/loop-status.py build` renders `plans/loop/status.html` — a single self-contained page (no network, no deps, auto-refreshes every 30s) showing each loop's goal, status pill (active / paused / done), cycle, runner-lease freshness, backlog progress bar, and last outcome. The loop regenerates it at **every cycle checkpoint**, and it's built purely from the durable marker + lock files — so it shows the same truth whether the loop is driven by **Claude Code, Codex, Cursor, or the external driver**, and keeps working when the agent is mid-crash (a stale page is visibly stale: ages are computed client-side). Terminal version: `bin/loop-status.py`. This is deliberately **not** a chat artifact — a status page tied to one vendor's chat UI can't report on a loop running in another tool.
+
+## Driving a loop from outside — `loobster-drive`
+
+In-agent self-driving (`ScheduleWakeup`/cron + the Stop hook) exists only in Claude Code. For **Codex, Cursor, overnight runs, or CI**, the bundled external driver supplies the turns from outside:
+
+```bash
+bin/loobster-drive.sh plans/loop/<slug>.md --tool codex     # or claude | cursor
+```
+
+While the marker says `status: active` it re-invokes the agent CLI with the loop prompt (built from the marker's `goal:`), sleeping `--interval` between runs, capped at `--max`. A `paused` marker (human approval gate) **stops the driver without invoking** — it never supplies turns past a gate — and `done` ends it. The single-runner lease makes double-driving safe (a re-entry backs off if a live runner holds the lease). Any other CLI: `LOOBSTER_DRIVE_CMD='mytool --msg {prompt}'`. It deliberately does **not** inject permission-bypass flags — configure unattended permissions in the agent itself.
+
+## Preferred subagents
+
+Drop `.claude/loobster.json` (example: `reference/loobster.example.json`) to choose **which model each delegation role uses**:
+
+```json
+{ "subagents": {
+    "act":      { "model": "opus"   },
+    "verify":   { "model": "sonnet" },
+    "research": { "model": "haiku"  } } }
+```
+
+Every phase command reads it before spawning an `Agent`: route the expensive thinking (a strong model for **act**), keep mechanical **research** reads cheap, and — the underrated one — make **verify** a *different* model than act, so the never-self-verify rule gains capability-independence, not just context-independence (a cross-model judge doesn't share the builder's blind spots). No file → every subagent inherits the session model.
 
 ## Token reduction
 
 Loobster keeps the model's working context lean in two layers:
 
 1. **Native token discipline (always on, zero-dependency, portable).** `reference/token-discipline.md` bakes in subagent isolation (heavy reads happen in a subagent; only the conclusion returns), artifact compaction (pass summaries between phases, re-read files on demand), cache-stable prefixes, and terse output. This reduces tokens by *elimination and structure* — it works identically in Claude Code, Codex, and a custom Agent SDK harness.
-2. **Wire-level output compression (Option D — on by default, two tiers).** The `PostToolUse` hook in `hooks/hooks.json` (`bin/headroom-compress.py`) shrinks large tool outputs before they enter context:
+2. **Wire-level output compression (Option D — on by default, two tiers).** The `PostToolUse` hook in `hooks/hooks.json` (`bin/headroom-compress.py`) shrinks large tool outputs before they enter context. It relies on the `hookSpecificOutput.updatedToolOutput` hook field, supported in **Claude Code ≥ 2.1.120** — on older versions the hook runs but Claude Code ignores its output (a silent no-op), so update Claude Code to actually get the savings:
    - **Tier 1 — [headroom](https://github.com/headroomlabs-ai/headroom), if installed.** `pip install "headroom-ai[code]"` ships the real compressors (a compiled Rust extension `headroom._core` + tiktoken); the hook prefers it when importable. headroom's mechanics are a native binary, so they **cannot be embedded** — this tier needs the install.
    - **Tier 2 — built-in lite-crush (zero-install, always on).** `bin/lite_crush.py` is a small, pure-stdlib, deterministic crusher: lossless whole-document JSON minify, marked collapse of repeated/blank lines, and clamped over-long lines. It runs whenever Tier 1 is absent, so **compression works out of the box with nothing installed**. Biggest wins on logs/JSON/repetitive output (~50–95%); near-zero (passthrough) on prose/source, where Tier 1 helps more. Lossy edits are explicitly marked with `[loobster-crush: …]` so the model never sees silent truncation.
    - **Option C — proxy / SDK middleware (any context, incl. Agent SDK).** Run `headroom proxy` and point your base URL at it, or use headroom's SDK middleware in your own harness.

@@ -1,0 +1,8 @@
+{
+  "_comment": "Optional per-repo Loobster config — copy to .claude/loobster.json. `subagents` sets a preferred model per delegation role; every phase command reads it before spawning an Agent. Values are whatever your runtime's Agent tool accepts as a model override (Claude Code: 'sonnet' | 'opus' | 'haiku' | a full model id such as 'claude-opus-4-8'). Omit a role (or the whole file) to inherit the session model. Tip: make `verify` a DIFFERENT model than `act` — cross-model verification catches self-consistent mistakes a same-model judge repeats.",
+  "subagents": {
+    "act": { "model": "opus" },
+    "verify": { "model": "sonnet" },
+    "research": { "model": "haiku" }
+  }
+}

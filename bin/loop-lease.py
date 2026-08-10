@@ -20,14 +20,18 @@ Exit codes:
   3  lease is held by a live (fresh) runner that is not you  -> back off and exit
   2  usage error
 
-Default TTL is 900s (~a few cycles). A lease whose heartbeat is older than TTL is
-"stale" and may be taken over.
+Default TTL is 3600s. It must exceed the LONGEST realistic cycle, not the shortest:
+the lease is only refreshed at cycle boundaries, and a single act step (a full /run
+in a subagent) can hold the runner silent for 30-60 minutes. A TTL shorter than a
+cycle makes a live runner look stale mid-act, so a cron/wakeup re-entry "takes over"
+and two instances collide on the same worktree. The cost of a long TTL is slower
+takeover after a hard crash (bounded by TTL + re-entry cadence); pass --ttl to tune.
 """
 import os
 import sys
 import time
 
-DEFAULT_TTL = 900
+DEFAULT_TTL = 3600
 
 
 def _lock_path(marker):

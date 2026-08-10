@@ -7,7 +7,7 @@ description: Run the enabled compliance checklists (any of HIPAA / HITRUST / ISO
 
 Run security/compliance checks against all uncommitted changes, for the frameworks you have enabled (any of: HIPAA, HITRUST, ISO 27001, SOC 2 — see `compliance/frameworks.md`). Healthcare frameworks are one aspect — not all of them have to be on.
 
-> **Independent assessment — never self-verify.** Run this in a **separate verifier subagent** (`Agent`) that did not produce the code. Per the token-discipline note below, delegate each enabled framework's checklist to its own judge subagent; the implementing agent never grades its own diff. (See the "Never self-verify" rule in `run.md`.)
+> **Independent assessment — never self-verify.** Run this in a **separate verifier subagent** (`Agent`) that did not produce the code. Per the token-discipline note below, delegate each enabled framework's checklist to its own judge subagent; the implementing agent never grades its own diff. (See the "Never self-verify" rule in `run.md`.) Apply the `verify` model preference from `.claude/loobster.json` when spawning these judges (see run.md "Preferred subagents"); no config → inherit the session model.
 
 ## What this does
 

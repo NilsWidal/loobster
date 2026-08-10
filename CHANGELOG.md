@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.11.0 — Loops that actually keep looping (durability audit) + status board + external driver + subagent routing
+
+A focused pass on "why does the loop keep stopping?". Four root causes found and fixed:
+
+**Loop durability (the fixes)**
+- **The Stop hook was one-nudge-only.** `loop-rearm.py` allowed any stop with `stop_hook_active` set, so a model that stopped twice in a row killed the loop until the next cron (≥20 min away — or forever if none was armed). It now **re-blocks repeatedly, bounded by a progress counter** (`plans/loop/.rearm-state.json`): the counter resets whenever the marker's `cycle`/heartbeat advances or a fresh stop chain starts, and after `LOOBSTER_LOOP_REARM_MAX` (default 5, kept under Claude Code's own 8-block cap) consecutive no-progress nudges it fails open. A working loop gets re-armed indefinitely; a wedged one still can't trap the session.
+- **The runner lease went stale mid-cycle.** Lease TTL was 900s but a single act step (a full `/run` in a subagent) can run 30–60 min silent — so a live runner looked dead, a cron re-entry "took over", and the two instances collided (or the original stopped in confusion on a failed refresh). `DEFAULT_TTL` is now **3600s** (sized to the longest realistic cycle), and `loop.md` specifies the lost-lease protocol: a refresh that exits 3 means *you* were taken over → stop quietly, never keep writing to a worktree another runner owns.
+- **`paused` was a one-way door.** Every human approval gate set `status: paused` — and nothing ever set it back, so a loop's first gate was its funeral. `loop.md` now makes re-activation load-bearing: when the human answers a gate, apply the decision, **flip the marker back to `active`, re-arm, and continue in the same turn**; unattended re-entries still treat `paused` as a strict no-op.
+- **Codex/Cursor had zero durability.** New **`bin/loobster-drive.sh`** — an external driver that re-invokes `claude -p` / `codex exec` / `cursor-agent -p` (or any CLI via `LOOBSTER_DRIVE_CMD`) while the marker is `active`, sleeps `--interval`, caps at `--max`, stops on `paused` **without invoking** (gates sacred) and on `done`. Deliberately does not inject permission-bypass flags. New `tests/test-loobster-drive.sh`.
+
+**Visibility**
+- **New cross-tool status board:** `bin/loop-status.py` (terminal) and `bin/loop-status.py build` → **`plans/loop/status.html`** — one self-contained, auto-refreshing page (status pill, cycle, runner-lease freshness, backlog bar, last outcome) built purely from the durable marker + lock files, so it's identical under Claude Code, Codex, Cursor, or the driver. The loop regenerates it at every checkpoint and now mirrors backlog counts (`backlogOpen/InProgress/Done`, `lastOutcome`) into the marker frontmatter so the board doesn't depend on any agent's task API. New `tests/test-loop-status.sh`. (Judgement call: a local generated page beats a chat-UI artifact — an artifact is vendor-locked to one chat surface and can't report on a loop running in another tool.)
+
+**Subagent routing**
+- **Preferred subagents:** optional `.claude/loobster.json` (`subagents.research/act/verify → {model}`) routes each delegation role to a model — e.g. Opus for act, something cheaper for mechanical research, and a **different** model for verify so never-self-verify gains capability-independence (a cross-model judge doesn't share the builder's blind spots). Wired into `run.md` + `loop.md`; example at `reference/loobster.example.json`.
+
+**Honesty**
+- Documented that Option D's compression depends on `hookSpecificOutput.updatedToolOutput`, supported in **Claude Code ≥ 2.1.120** (verified against the hooks docs) — on older versions the hook is a silent no-op, so update to actually get the savings.
+
+**Review hardening (independent code-review pass on this release)**
+- `loobster-drive.sh`: the `LOOBSTER_DRIVE_CMD` custom path now passes the prompt as an exported env var (`"$LOOBSTER_PROMPT"`), never spliced into `sh -c` — a goal containing quotes/`;` can no longer break or inject into the command; a value-taking flag with no value errors out instead of spinning the parse loop.
+- `loop-status.py`: tolerates free-form backlog counts (no more build-killing ValueError), and anchors at the nearest ancestor with `plans/loop/` (same walk-up as the Stop hook) so a subdirectory cwd can't silently stale the board.
+- `loop-rearm.py`: the nudge budget in `.rearm-state.json` is keyed by `session_id`, so two sessions on one worktree can't reset or pre-spend each other's counter; also anchors marker discovery at the project root from a subdirectory cwd.
+- Subagent model routing wired into `secure.md`, `review-code.md`, and `research-codebase.md` too (not just run/loop) — the README's "every phase command" claim is now true.
+- Tests: **80 passing** across 9 suites (was 45).
+
 ## 0.10.0 — Option D works with zero install (built-in lite-crush tier)
 
 - **Token compression now works out of the box — no `pip install` required.** Option D gained a **Tier 2** fallback: `bin/lite_crush.py`, a small, pure-stdlib, deterministic crusher (lossless whole-document JSON minify; marked collapse of repeated/blank lines; clamped over-long lines). It runs whenever headroom (Tier 1) isn't importable, so the hook is **no longer a silent no-op without headroom**. Wins are biggest on logs/JSON/repetitive output (~50–95%) and near-zero on prose/source (passthrough), where Tier 1's real compressors help more. Lossy edits are marked `[loobster-crush: …]` so the model never sees silent truncation. `LOOBSTER_LITE_CRUSH=0` disables only Tier 2; `LOOBSTER_HEADROOM=0` still disables everything.
