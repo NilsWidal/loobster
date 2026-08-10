@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.13.0 — The fleet dashboard: the team's central thing, on GitHub, not on a server
+
+Answers "should agents + engineers talk to a hosted hub?" with: the hub already exists — GitHub is the server. No new data path, no SaaS, no self-hosted service.
+
+- **New `bin/fleet-build.py`** — aggregates every goal-loop across **all branches with recent activity** (pr-lane loops live on feature branches, so branch-scanning is the point) by reading `plans/loop/*.md` markers straight out of git (no checkouts), dedups markers inherited from fork points to the branch where the loop actually checkpoints, folds in the signals hub, and emits `data.json` + a self-contained `index.html`. Ages render client-side, so a stale page looks stale instead of confidently wrong. New `tests/test-fleet-build.sh`.
+- **New `templates/fleet-pages.yml`** — GitHub Actions builds the board on every marker/signal push plus hourly and publishes to **GitHub Pages**: one URL for the whole team, fleet at `/`, signals board at `/signals/`. One Pages site per repo, so this workflow *replaces* `signals-pages.yml` (it serves both). Same visibility caveat as before: private Pages needs Enterprise/Team; never on a public repo with sensitive business state.
+- **The dashboard is editable with zero backend.** Paste a fine-grained PAT (contents read/write, stored only in the viewer's browser) and Pause / Resume / Stop buttons commit a `status:` edit to the marker **on its branch** via the GitHub Contents API — every control action is an audit-logged commit.
+- **Loops now honor upstream marker edits (remote control).** `loop.md`'s cycle trigger fetches `origin` and compares the marker's upstream `status`: a teammate (or the dashboard) setting `paused`/`done` upstream is adopted exactly as if set locally — release the lease, pause/stop. This is what makes the dashboard's buttons real controls; a colleague can stop a loop on your machine from their phone.
+- Tests: **86 passing** across 10 suites.
+
 ## 0.12.1 — Patch: ship the loop.md claims fix to installed plugins
 
 - Version bump so the plugin installer (which is version-gated) picks up the README-cleanup PR's `loop.md` correction: the escalation summary said "never auto-pushes", which contradicted the `pr-lane` delivery mode authorized elsewhere in the same file — now "never lands anything on the default branch without a human." Doc-truth fix only; no behavior change.
