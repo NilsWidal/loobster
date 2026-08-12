@@ -95,13 +95,20 @@ def relevant_branches(root, days):
     return sorted(branches.items(), key=lambda kv: -kv[1][1]), default
 
 
+TASK_PATH = re.compile(r"^plans/loop/([^/]+)-tasks/[^/]+\.md$")
+
+
 def branch_loops(root, name, ref):
-    """Read plans/loop/*.md markers from a branch without checking it out."""
+    """Read plans/loop/*.md markers and plans/loop/<goal>-tasks/*.md task files
+    from a branch without checking it out."""
     listing = git(root, "ls-tree", "-r", "--name-only", ref, "plans/loop/") or ""
-    loops = []
+    loops, tasks = [], []
     for path in listing.splitlines():
         if not path.endswith(".md"):
             continue
+        task = TASK_PATH.match(path)
+        if task is None and path.count("/") != 2:
+            continue                      # nested non-task files: neither kind
         text = git(root, "show", f"{ref}:{path}")
         if not text:
             continue
@@ -111,9 +118,13 @@ def branch_loops(root, name, ref):
         ts = git(root, "log", "-1", "--format=%ct", ref, "--", path)
         fm["_branch"] = name
         fm["_path"] = path
-        fm["_checkpointTs"] = int(ts.strip()) if ts and ts.strip() else 0
-        loops.append(fm)
-    return loops
+        fm["_ts"] = int(ts.strip()) if ts and ts.strip() else 0
+        if task:
+            fm["_goal"] = task.group(1)
+            tasks.append(fm)
+        else:
+            loops.append(fm)
+    return loops, tasks
 
 
 def read_signals(root):
@@ -149,26 +160,57 @@ def detect_repo(root):
 KEEP = ("status", "goalId", "goal", "cycle", "maxCycles", "deliveryMode",
         "linearProject", "backlogOpen", "backlogInProgress", "backlogDone",
         "backlogBlocked", "lastOutcome", "runnerHeartbeatAt")
+TKEEP = ("status", "title", "score", "owner", "pr", "linearId")
+TORDER = {"in_progress": 0, "open": 1, "parked": 2, "done": 3}
+TASK_CAP = 50            # per loop, in the emitted data (highest-scored kept)
+
+
+def task_score(t):
+    try:
+        return float(t.get("score", 0))
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def build_data(root, days, repo):
     branches, default = relevant_branches(root, days)
     # A marker inherited from the fork point shows up on every descendant branch;
-    # that's history, not N loops. Dedup by marker path, keeping the branch with
-    # the newest last-touch commit (where the loop actually checkpoints); on a
-    # tie prefer the default branch.
-    best = {}
+    # that's history, not N loops. Dedup by path, keeping the branch with the
+    # newest last-touch commit (where the loop actually checkpoints); on a tie
+    # prefer the default branch. Task files get the exact same treatment.
+    best, tbest = {}, {}
+
+    def keep_newest(store, row, ts_key):
+        cur = store.get(row["path"])
+        if (cur is None or row[ts_key] > cur[ts_key]
+                or (row[ts_key] == cur[ts_key]
+                    and row["branch"] == default != cur["branch"])):
+            store[row["path"]] = row
+
     for name, (ref, _ts) in branches:
-        for fm in branch_loops(root, name, ref):
+        markers, tfiles = branch_loops(root, name, ref)
+        for fm in markers:
             row = {k: fm[k] for k in KEEP if k in fm}
             row.update(branch=fm["_branch"], path=fm["_path"],
-                       checkpointTs=fm["_checkpointTs"])
-            cur = best.get(row["path"])
-            if (cur is None or row["checkpointTs"] > cur["checkpointTs"]
-                    or (row["checkpointTs"] == cur["checkpointTs"]
-                        and row["branch"] == default != cur["branch"])):
-                best[row["path"]] = row
+                       checkpointTs=fm["_ts"])
+            keep_newest(best, row, "checkpointTs")
+        for fm in tfiles:
+            row = {k: fm[k] for k in TKEEP if k in fm}
+            row.update(branch=fm["_branch"], path=fm["_path"], ts=fm["_ts"],
+                       goal=fm["_goal"], file=os.path.basename(fm["_path"]))
+            keep_newest(tbest, row, "ts")
+
+    tasks_by_goal = {}
+    for row in tbest.values():
+        tasks_by_goal.setdefault(row.pop("goal"), []).append(row)
+    for rows in tasks_by_goal.values():
+        rows.sort(key=lambda t: (TORDER.get(t.get("status", ""), 4),
+                                 -task_score(t), t.get("title", "")))
+        del rows[TASK_CAP:]
+
     loops = list(best.values())
+    for row in loops:
+        row["tasks"] = tasks_by_goal.get(os.path.basename(row["path"])[:-3], [])
     order = {"active": 0, "paused": 1, "done": 2}
     loops.sort(key=lambda r: (order.get(r.get("status", ""), 3), -r["checkpointTs"]))
     return {
@@ -218,6 +260,16 @@ PAGE = """<!doctype html>
           width:280px; }
   .controls { margin-top:8px; display:flex; gap:8px; align-items:center; }
   .msg { font-size:12px; }
+  .kb { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .col { flex:1 1 160px; min-width:150px; background:var(--bg);
+         border:1px solid var(--line); border-radius:6px; padding:8px; }
+  .col h4 { margin:0 0 6px; font-size:11px; color:var(--muted);
+            text-transform:uppercase; letter-spacing:.04em; }
+  .task { border:1px solid var(--line); border-radius:6px; padding:6px 8px;
+          margin-bottom:6px; font-size:12px; }
+  .task .row { gap:4px 8px; margin-top:4px; }
+  .score { color:var(--muted); }
+  .tbtn { font-size:11px; padding:0 7px; }
   details { margin:10px 0 18px; color:var(--muted); }
   code { background:var(--card); padding:1px 5px; border-radius:4px; }
 </style>
@@ -230,6 +282,11 @@ PAGE = """<!doctype html>
   takes effect asynchronously. Paste a fine-grained PAT with <b>contents: read&amp;write</b>
   on this repo; it is stored only in this browser (localStorage), never sent anywhere
   except api.github.com.</p>
+  <p><a href="https://github.com/settings/personal-access-tokens/new" target="_blank"
+  rel="noopener">Create a fine-grained PAT &#8599;</a> &mdash; set Repository access &rarr;
+  <b>Only select repositories</b> &rarr; <b id="repname"></b>, Permissions &rarr;
+  <b>Contents: Read and write</b>, then paste it below. (GitHub has no API to create
+  PATs, so those two clicks stay manual by design.)</p>
   <input id="pat" type="password" placeholder="github_pat_...">
   <button onclick="savePat()">Save token</button> <span class="msg" id="patmsg"></span>
 </details>
@@ -249,6 +306,26 @@ function savePat(){ localStorage.setItem(KEY, document.getElementById('pat').val
 document.getElementById('sub').textContent =
   `${DATA.repo} · generated ${age(DATA.generated)} ago · ` +
   `${DATA.branchesScanned.length} branches scanned (last ${DATA.windowDays}d) · page refreshes every 2min`;
+document.getElementById('repname').textContent = DATA.repo;
+
+const TCOLS = [['in_progress','in progress'],['open','open'],['parked','parked'],['done','done']];
+const TBTNS = { open: [['start','in_progress'],['done','done'],['park','parked']],
+                in_progress: [['done','done'],['park','parked']],
+                parked: [['reopen','open']], done: [] };
+
+function kanban(l, i){
+  if (!(l.tasks || []).length) return '';
+  return `<div class="kb">` + TCOLS.map(([st, label]) => {
+    const items = l.tasks.map((t, ti) => [t, ti]).filter(([t]) => (t.status || 'open') === st);
+    return `<div class="col"><h4>${esc(label)} (${items.length})</h4>` + items.map(([t, ti]) =>
+      `<div class="task"><div>${esc(t.title || t.file)}</div>
+        <div class="row"><span class="score">rice ${esc(t.score ?? '?')}</span>
+        ${t.pr ? `<a href="${esc(t.pr)}" target="_blank" rel="noopener">PR</a>` : ''}
+        ${(TBTNS[st] || []).map(([lbl, next]) =>
+          `<button class="tbtn" onclick="setTaskStatus(${i},${ti},'${next}')">${lbl}</button>`).join('')}
+        <span class="msg" id="tmsg-${i}-${ti}"></span></div></div>`).join('') + `</div>`;
+  }).join('') + `</div>`;
+}
 
 function card(l, i){
   const cyc = l.maxCycles ? `${esc(l.cycle ?? '?')} / ${esc(l.maxCycles)}` : esc(l.cycle ?? '?');
@@ -272,19 +349,26 @@ function card(l, i){
       <div class="bar"><i style="width:${Math.round(100*counts[2]/total)}%"></i></div>` : ''}
     ${extras.length ? `<div class="kv">${extras.join(' &middot; ')}</div>` : ''}
     ${l.lastOutcome ? `<div class="kv">last: <b>${esc(l.lastOutcome)}</b></div>` : ''}
+    ${kanban(l, i)}
     <div class="age">checkpointed ${age(l.checkpointTs)} ago &middot; ${esc(l.path)}</div>
     ${canCtl ? `<div class="controls">
       ${l.status === 'active' ? `<button onclick="setStatus(${i},'paused')">Pause</button>` :
                                 `<button onclick="setStatus(${i},'active')">Resume</button>`}
       <button onclick="setStatus(${i},'done')">Stop</button>
-      <span class="msg" id="msg-${i}"></span></div>` : ''}
+      <span class="msg" id="msg-${i}"></span></div>
+    <div class="controls"><input id="nt-${i}" placeholder="new task title" style="width:220px">
+      <button onclick="addTask(${i})">Add task</button>
+      <span class="msg" id="ntmsg-${i}"></span></div>` : ''}
   </div>`;
 }
 
-document.getElementById('fleet').innerHTML = DATA.loops.length
-  ? DATA.loops.map(card).join('')
-  : '<div class="card"><div class="goal">No goal-loops on any recent branch.</div>' +
-    '<div class="kv">Start one with /loobster:loop &lt;goal&gt;</div></div>';
+function renderFleet(){
+  document.getElementById('fleet').innerHTML = DATA.loops.length
+    ? DATA.loops.map(card).join('')
+    : '<div class="card"><div class="goal">No goal-loops on any recent branch.</div>' +
+      '<div class="kv">Start one with /loobster:loop &lt;goal&gt;</div></div>';
+}
+renderFleet();
 
 const sig = DATA.signals || {counts:{}, recent:[]};
 document.getElementById('signals').innerHTML =
@@ -292,27 +376,74 @@ document.getElementById('signals').innerHTML =
    <div class="kv">${Object.entries(sig.counts).map(([k,v]) => `<b>${v}</b> ${esc(k)}`).join(' &middot; ') || 'no signals'}</div>` +
   sig.recent.map(s => `<div class="kv">${esc(s.file)} <b>${esc(s.status)}</b> ${esc(s.type)} ${esc(s.author)}</div>`).join('');
 
+function ghHeaders(){
+  const pat = localStorage.getItem(KEY);
+  if (!pat) throw new Error('save a token above first');
+  return { Authorization: `Bearer ${pat}`, Accept: 'application/vnd.github+json' };
+}
+function b64(text){
+  const bytes = new TextEncoder().encode(text);
+  let bin = ''; bytes.forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin);
+}
+async function editStatusFile(path, branch, status, message){
+  const api = `https://api.github.com/repos/${DATA.repo}/contents/${path}`;
+  const headers = ghHeaders();
+  const cur = await (await fetch(`${api}?ref=${encodeURIComponent(branch)}`, { headers })).json();
+  if (!cur.sha) throw new Error(cur.message || 'fetch failed');
+  const text = new TextDecoder().decode(Uint8Array.from(atob(cur.content.replace(/\\n/g,'')), c => c.charCodeAt(0)));
+  const next = text.replace(/^(\\s*status\\s*:\\s*)\\S+/m, `$1${status}`);
+  if (next === text) throw new Error('no status line found');
+  const put = await (await fetch(api, { method: 'PUT', headers, body: JSON.stringify({
+    message, content: b64(next), sha: cur.sha, branch }) })).json();
+  if (!put.commit) throw new Error(put.message || 'commit failed');
+}
+
 async function setStatus(i, status){
   const l = DATA.loops[i], msg = document.getElementById('msg-' + i);
-  const pat = localStorage.getItem(KEY);
-  if (!pat) { msg.textContent = 'save a token above first'; return; }
   if (status === 'done' && !confirm(`Stop loop "${l.goalId}" on ${l.branch}?`)) return;
   msg.textContent = '...';
   try {
-    const api = `https://api.github.com/repos/${DATA.repo}/contents/${l.path}`;
-    const headers = { Authorization: `Bearer ${pat}`, Accept: 'application/vnd.github+json' };
-    const cur = await (await fetch(`${api}?ref=${encodeURIComponent(l.branch)}`, { headers })).json();
-    if (!cur.sha) throw new Error(cur.message || 'fetch failed');
-    const text = new TextDecoder().decode(Uint8Array.from(atob(cur.content.replace(/\\n/g,'')), c => c.charCodeAt(0)));
-    const next = text.replace(/^(\\s*status\\s*:\\s*)\\S+/m, `$1${status}`);
-    if (next === text) throw new Error('no status line found');
-    const bytes = new TextEncoder().encode(next);
-    let bin = ''; bytes.forEach(b => bin += String.fromCharCode(b));
-    const put = await (await fetch(api, { method: 'PUT', headers, body: JSON.stringify({
-      message: `fleet-dashboard: ${l.goalId} status -> ${status}`,
-      content: btoa(bin), sha: cur.sha, branch: l.branch }) })).json();
-    if (!put.commit) throw new Error(put.message || 'commit failed');
+    await editStatusFile(l.path, l.branch, status,
+      `fleet-dashboard: ${l.goalId} status -> ${status}`);
     msg.textContent = `committed; the loop adopts it next cycle`;
+  } catch (e) { msg.textContent = 'error: ' + e.message; }
+}
+
+async function setTaskStatus(i, ti, status){
+  const l = DATA.loops[i], t = l.tasks[ti];
+  const msg = document.getElementById(`tmsg-${i}-${ti}`);
+  msg.textContent = '...';
+  try {
+    await editStatusFile(t.path, t.branch, status,
+      `fleet-dashboard: task "${t.title || t.file}" -> ${status}`);
+    t.status = status;            // optimistic: the card moves column now,
+    renderFleet();                // the loop adopts the commit next cycle
+  } catch (e) { msg.textContent = 'error: ' + e.message; }
+}
+
+async function addTask(i){
+  const l = DATA.loops[i];
+  const inp = document.getElementById('nt-' + i), msg = document.getElementById('ntmsg-' + i);
+  const title = (inp.value || '').trim();
+  if (!title) { msg.textContent = 'enter a title'; return; }
+  msg.textContent = '...';
+  try {
+    const headers = ghHeaders();
+    const goal = l.path.replace(/^plans\\/loop\\//, '').replace(/\\.md$/, '');
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '').slice(0, 40) || 'task';
+    const path = `plans/loop/${goal}-tasks/${Date.now()}-${slug}.md`;
+    const body = `---\\nstatus: open\\ntitle: ${title.replace(/\\s+/g, ' ')}\\n` +
+      `score: 0\\nowner: board\\n---\\nfiled from the fleet dashboard\\n`;
+    const put = await (await fetch(`https://api.github.com/repos/${DATA.repo}/contents/${path}`, {
+      method: 'PUT', headers, body: JSON.stringify({
+        message: `fleet-dashboard: add task "${title}"`,
+        content: b64(body), branch: l.branch }) })).json();
+    if (!put.commit) throw new Error(put.message || 'commit failed');
+    (l.tasks = l.tasks || []).push({ title, status: 'open', score: '0', owner: 'board',
+      path, branch: l.branch, file: path.split('/').pop() });
+    renderFleet();                // the loop adopts + re-scores it next cycle
   } catch (e) { msg.textContent = 'error: ' + e.message; }
 }
 </script>

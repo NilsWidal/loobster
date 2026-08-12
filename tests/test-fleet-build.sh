@@ -24,6 +24,9 @@ mkrepo(){ # main with one done loop + a signal; feature branch with an active pr
   G "$d" add -A; G "$d" commit -m main
   G "$d" checkout -b feat/loop-work
   printf -- '---\nstatus: active\ngoalId: cov\ngoal: Raise coverage\ncycle: 3\nmaxCycles: 10\ndeliveryMode: pr-lane\nbacklogOpen: 4\nbacklogDone: 2\n---\n' > "$d/plans/loop/cov.md"
+  mkdir -p "$d/plans/loop/cov-tasks"
+  printf -- '---\nstatus: open\ntitle: Fix flaky auth test\nscore: 12\n---\n' > "$d/plans/loop/cov-tasks/001-fix-auth.md"
+  printf -- '---\nstatus: done\ntitle: Raise unit coverage\nscore: 8\nowner: loop\n---\n' > "$d/plans/loop/cov-tasks/000-raise-cov.md"
   G "$d" add -A; G "$d" commit -m feat
   G "$d" checkout main
   echo "$d"; }
@@ -37,9 +40,14 @@ import json, sys
 d = json.load(open(sys.argv[1]))
 loops = d["loops"]
 assert d["repo"] == "acme/widgets", d["repo"]
-assert [l["goalId"] for l in loops] == ["cov", "shipped"], loops
+assert [l["goalId"] for l in loops] == ["cov", "shipped"], loops   # task files are NOT loops
 assert loops[0]["branch"] == "feat/loop-work" and loops[0]["deliveryMode"] == "pr-lane"
 assert loops[1]["branch"] == "main", "inherited marker must dedup to the default branch"
+tasks = loops[0]["tasks"]
+assert [t["title"] for t in tasks] == ["Fix flaky auth test", "Raise unit coverage"], tasks
+assert tasks[0]["status"] == "open" and tasks[0]["branch"] == "feat/loop-work"
+assert tasks[0]["path"] == "plans/loop/cov-tasks/001-fix-auth.md"
+assert loops[1]["tasks"] == [], "loop without a tasks dir gets an empty list"
 assert d["signals"]["counts"].get("new") == 1, "README/INDEX must not count as signals"
 assert all(r["file"].upper() not in ("README.MD", "INDEX.MD") for r in d["signals"]["recent"])
 EOF
@@ -51,6 +59,12 @@ EOF
   && grep -q 'api.github.com' "$out/index.html" && grep -q 'setStatus' "$out/index.html" \
   && ! grep -qi 'src="http' "$out/index.html"; } \
   && ok "self-contained editable index.html" || no "index.html" "missing pieces"
+
+# 2b. Task board wiring: kanban data + task controls + add form + PAT deep-link.
+{ grep -q 'Fix flaky auth test' "$out/index.html" && grep -q 'setTaskStatus' "$out/index.html" \
+  && grep -q 'addTask' "$out/index.html" \
+  && grep -q 'personal-access-tokens/new' "$out/index.html"; } \
+  && ok "interactive task board + token link in index.html" || no "task board" "missing pieces"
 
 # 3. --days 0 prunes the (old-enough) feature branch... but default branch always stays.
 #    All commits are 'now', so instead verify the default branch survives an empty window
