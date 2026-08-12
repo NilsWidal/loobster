@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.1 — Patch: fleet board no longer counts the signals README as a signal
+
+- **`bin/fleet-build.py` disagreed with `bin/signals-build.py` about what a signal is.** The signals builder excludes hub scaffolding (`README.md`, `INDEX.md`); the fleet builder globbed `signals/*.md` and skipped only `INDEX*` — so on every repo wired by `/team-setup` (which scaffolds `signals/README.md`), the fleet card read "1 new" forever and never showed genuinely empty. Cosmetic, not a compliance hole (the strict PHI lint never treated README as a signal), but the count was permanently off by one. The fleet builder now applies the same exclusions; regression covered in `tests/test-fleet-build.sh`. First found live on a vendored 0.14.0 copy — re-run `/team-setup` with `--force` after upgrading to refresh vendored files.
+
 ## 0.14.0 — /team-setup: team-ready in one command
 
 0.13.0 made GitHub the team hub — but wiring a repo up was manual (copy a template, click Settings → Pages) and, worse, quietly incomplete: `fleet-pages.yml` runs `bin/fleet-build.py` and `bin/signals-build.py` from the **repo checkout inside Actions**, where the plugin install directory doesn't exist — so a hand-copied workflow failed on its first run unless you knew to vendor the scripts too.

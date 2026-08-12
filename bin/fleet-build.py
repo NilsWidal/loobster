@@ -122,7 +122,8 @@ def read_signals(root):
     counts, recent = {}, []
     for path in sorted(glob.glob(os.path.join(root, "signals", "*.md")), reverse=True):
         base = os.path.basename(path)
-        if base.upper().startswith("INDEX"):
+        # same exclusions as signals-build.py: hub scaffolding is not a signal
+        if base.upper() in ("INDEX.MD", "README.MD") or base.upper().startswith("INDEX"):
             continue
         try:
             fm = parse_frontmatter(open(path, encoding="utf-8").read(4000)) or {}
