@@ -19,6 +19,8 @@ mkrepo(){ # main with one done loop + a signal; feature branch with an active pr
   mkdir -p "$d/plans/loop" "$d/signals"
   printf -- '---\nstatus: done\ngoalId: shipped\ngoal: Old goal\ncycle: 9\n---\n' > "$d/plans/loop/shipped.md"
   printf -- '---\nstatus: new\ntype: friction\nauthor: ana\n---\nusers ask about export\n' > "$d/signals/2026-08-01-ana-export.md"
+  printf -- '# Signals hub\n' > "$d/signals/README.md"      # scaffolding, not a signal
+  printf -- '# index\n' > "$d/signals/INDEX.md"
   G "$d" add -A; G "$d" commit -m main
   G "$d" checkout -b feat/loop-work
   printf -- '---\nstatus: active\ngoalId: cov\ngoal: Raise coverage\ncycle: 3\nmaxCycles: 10\ndeliveryMode: pr-lane\nbacklogOpen: 4\nbacklogDone: 2\n---\n' > "$d/plans/loop/cov.md"
@@ -38,7 +40,8 @@ assert d["repo"] == "acme/widgets", d["repo"]
 assert [l["goalId"] for l in loops] == ["cov", "shipped"], loops
 assert loops[0]["branch"] == "feat/loop-work" and loops[0]["deliveryMode"] == "pr-lane"
 assert loops[1]["branch"] == "main", "inherited marker must dedup to the default branch"
-assert d["signals"]["counts"].get("new") == 1
+assert d["signals"]["counts"].get("new") == 1, "README/INDEX must not count as signals"
+assert all(r["file"].upper() not in ("README.MD", "INDEX.MD") for r in d["signals"]["recent"])
 EOF
 } && ok "aggregates across branches (active first, inherited markers deduped)" \
   || no "cross-branch aggregate" "rc=$rc res=$res"
