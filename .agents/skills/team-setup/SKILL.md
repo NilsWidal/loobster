@@ -14,7 +14,7 @@ Make this repo **team-ready on GitHub in one command**: vendor the fleet dashboa
 ## Steps
 
 1. **Preflight.** Confirm the workspace is a git repo. Check `gh auth status`; if `gh` is missing or unauthenticated, still proceed — the script vendors everything and prints the one manual step (Settings → Pages → Source: GitHub Actions) instead of doing it via API.
-2. **Compliance gate — before running.** Check the repo's visibility (`gh repo view --json visibility`). If it is **not private**, stop and ask the human explicitly: Pages would serve loop goals, outcomes, and signals world-readable. Only pass `--public-ok` after the human confirms the project is non-sensitive. **Never** on PHI-adjacent work — see `compliance/org-controls-audit.md`. (The script enforces this too: it refuses with exit 3 rather than trusting a comment.)
+2. **Compliance gate — before running.** The real question is not "is the repo private?" but "will the *Pages site* be world-readable?" — and it will be for every repo **except a private repo on GitHub Enterprise Cloud** (a private repo on Free/Pro/Team still publishes public Pages). The script checks visibility **and** plan and refuses (exit 3) whenever the board would be public, unless `--public-ok`. So: if it refuses, stop and ask the human explicitly before passing `--public-ok` — the board would expose loop goals, task titles, and signals. **Never** on PHI-adjacent work — see `compliance/org-controls-audit.md`. After enabling, the script reads the live Pages object back and prints whether the URL is actually public or private; relay that to the human.
 3. **Run it:**
    ```bash
    bash bin/team-init.sh --repo "$(pwd)"
@@ -32,5 +32,5 @@ Make this repo **team-ready on GitHub in one command**: vendor the fleet dashboa
 ## Notes
 
 - Re-runs are safe: existing files are skipped without `--force`, so `/team-setup` is also the upgrade path for the vendored scripts.
-- Private GitHub Pages requires GitHub Enterprise/Team — an org-level fact the script cannot change; on a plain private repo the Pages URL is unauthenticated-but-unlisted, which is only acceptable per your org's posture (`compliance/org-controls-audit.md`).
+- Genuinely private Pages requires **GitHub Enterprise Cloud** — an org-level fact the script cannot change. On any other plan a "private" repo still serves a fully public Pages site (not merely unlisted), which is why the gate blocks it by default; see `compliance/org-controls-audit.md`.
 - This wires the *team layer* only. The RePPITS workflow itself (`/run`, `/loop`, `/secure`) needs no setup.

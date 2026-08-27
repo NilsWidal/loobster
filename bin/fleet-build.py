@@ -370,11 +370,11 @@ PAGE = """<!doctype html>
 <header class="top">
   <div class="brand">&#129438; Loobster <em>fleet</em></div>
   <nav class="tabs" aria-label="Views">
-    <button class="tab" id="tab-board" aria-selected="false" onclick="go('board')">Board <span class="n" id="n-board"></span></button>
-    <button class="tab" id="tab-loops" aria-selected="false" onclick="go('loops')">Loops <span class="n" id="n-loops"></span></button>
-    <button class="tab" id="tab-signals" aria-selected="false" onclick="go('signals')">Signals <span class="n" id="n-signals"></span></button>
+    <button class="tab" id="tab-board" aria-selected="false" data-act="go" data-view="board">Board <span class="n" id="n-board"></span></button>
+    <button class="tab" id="tab-loops" aria-selected="false" data-act="go" data-view="loops">Loops <span class="n" id="n-loops"></span></button>
+    <button class="tab" id="tab-signals" aria-selected="false" data-act="go" data-view="signals">Signals <span class="n" id="n-signals"></span></button>
   </nav>
-  <button class="ctl" onclick="document.getElementById('tokendlg').showModal()">
+  <button class="ctl" data-act="opendlg">
     <span class="dot" id="tokendot"></span><span id="tokenlabel">controls off</span></button>
 </header>
 <div class="sub" id="sub"></div>
@@ -400,8 +400,8 @@ PAGE = """<!doctype html>
   <p>The token is stored only in this browser (localStorage) and sent only to api.github.com.</p>
   <form method="dialog" class="row">
     <input id="pat" type="password" placeholder="github_pat_..." autocomplete="off">
-    <button class="btn primary" onclick="savePat()">Save</button>
-    <button class="btn" onclick="clearPat()">Clear</button>
+    <button class="btn primary" data-act="savepat">Save</button>
+    <button class="btn" data-act="clearpat">Clear</button>
     <button class="btn">Close</button>
   </form>
 </dialog>
@@ -410,6 +410,10 @@ PAGE = """<!doctype html>
 <script>
 const DATA = JSON.parse(document.getElementById('fleet-data').textContent);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Frontmatter is attacker-controllable (any branch scanned within --days), so it
+// only ever reaches the DOM as escaped HTML text/attributes or via dataset — never
+// as JS (no inline handlers) and never as an href unless it is a plain http(s) URL.
+const safeUrl = s => /^https?:\\/\\//i.test(String(s ?? '')) ? String(s) : '';
 const age = ts => { if (!ts) return '?';
   const s = Math.max(0, Date.now()/1000 - ts);
   return s < 90 ? Math.round(s)+'s' : s < 5400 ? Math.round(s/60)+'m' : (s/3600).toFixed(1)+'h'; };
@@ -484,9 +488,9 @@ function tcard(r, st){
     <div>${esc(t.title || t.file)}</div>
     <div class="tmeta">${chip(l)}<span title="RICE score">rice ${esc(t.score ?? '?')}</span>
       ${t.owner ? `<span>${esc(t.owner)}</span>` : ''}
-      ${t.pr ? `<a href="${esc(t.pr)}" target="_blank" rel="noopener">PR</a>` : ''}</div>
+      ${safeUrl(t.pr) ? `<a href="${esc(safeUrl(t.pr))}" target="_blank" rel="noopener">PR</a>` : ''}</div>
     ${MOVES[st].length ? `<div class="tact">${MOVES[st].map(([lbl, next]) =>
-      `<button class="tbtn" onclick="setTaskStatus(${li},${ti},'${next}')">${lbl}</button>`).join('')}</div>` : ''}
+      `<button class="tbtn" data-act="taskstatus" data-li="${li}" data-ti="${ti}" data-next="${next}">${lbl}</button>`).join('')}</div>` : ''}
   </div>`;
 }
 
@@ -494,11 +498,11 @@ function renderBoard(){
   const rows = allTasks().filter(r => !filter || r.l.goalId === filter);
   const ctl = DATA.loops.filter(l => l.status === 'active' || l.status === 'paused');
   const chips = DATA.loops.length > 1 ? `<div class="chips">` +
-    [`<button class="chip" aria-pressed="${!filter}" onclick="setFilter(null)">all loops</button>`,
+    [`<button class="chip" aria-pressed="${!filter}" data-act="filter">all loops</button>`,
      ...DATA.loops.map(l => `<button class="chip" aria-pressed="${filter === l.goalId}"
-        onclick="setFilter('${esc(l.goalId)}')"><span class="dot"
+        data-act="filter" data-goal="${esc(l.goalId)}"><span class="dot"
         style="background:${dotCss(l.goalId)}"></span>${esc(l.goalId)}</button>`)].join('') + `</div>` : '';
-  const form = ctl.length ? `<form class="addform" onsubmit="addTask(event)">
+  const form = ctl.length ? `<form class="addform">
       ${ctl.length > 1
         ? `<select id="nt-loop" aria-label="loop">${ctl.map(l =>
              `<option value="${esc(l.goalId)}">${esc(l.goalId)}</option>`).join('')}</select>`
@@ -552,10 +556,10 @@ function renderLoops(){
       <div class="age">checkpointed ${age(l.checkpointTs)} ago &middot; ${esc(l.path)}</div>
       <div class="lact">
         ${canCtl ? (l.status === 'active'
-          ? `<button class="btn" onclick="setStatus(${i},'paused')">Pause</button>`
-          : `<button class="btn" onclick="setStatus(${i},'active')">Resume</button>`) +
-          `<button class="btn" onclick="setStatus(${i},'done')">Stop</button>` : ''}
-        ${ntasks ? `<button class="btn" onclick="setFilter('${esc(l.goalId)}');go('board')">
+          ? `<button class="btn" data-act="status" data-i="${i}" data-next="paused">Pause</button>`
+          : `<button class="btn" data-act="status" data-i="${i}" data-next="active">Resume</button>`) +
+          `<button class="btn" data-act="status" data-i="${i}" data-next="done">Stop</button>` : ''}
+        ${ntasks ? `<button class="btn" data-act="filtergo" data-goal="${esc(l.goalId)}">
            Board (${ntasks})</button>` : ''}
       </div>
     </div>`;
@@ -650,6 +654,28 @@ async function addTask(ev){
     toast(`task committed to ${l.branch} — the loop adopts + scores it next cycle`);
   } catch (e) { toast('error: ' + e.message); }
 }
+
+// Event delegation — NO inline handlers anywhere, so no attacker-controlled
+// frontmatter value is ever parsed as JavaScript. Buttons carry data-act + data-*
+// operands (li/ti/i are build-time integers; goal is read as a plain dataset string).
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  const d = b.dataset;
+  switch (d.act) {
+    case 'go': go(d.view); break;
+    case 'opendlg': document.getElementById('tokendlg').showModal(); break;
+    case 'savepat': savePat(); break;
+    case 'clearpat': clearPat(); break;
+    case 'filter': setFilter(d.goal ?? null); break;
+    case 'filtergo': setFilter(d.goal ?? null); go('board'); break;
+    case 'status': setStatus(+d.i, d.next); break;
+    case 'taskstatus': setTaskStatus(+d.li, +d.ti, d.next); break;
+  }
+});
+document.addEventListener('submit', e => {
+  if (e.target.matches('form.addform')) addTask(e);
+});
 
 renderCounts(); renderBoard(); renderLoops(); renderSignals(); refreshToken();
 const start = ['board','loops','signals'].includes(location.hash.slice(1))

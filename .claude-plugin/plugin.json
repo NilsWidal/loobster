@@ -1,6 +1,6 @@
 {
   "name": "loobster",
-  "version": "0.15.0",
+  "version": "0.15.1",
   "description": "AI-powered secure, autonomous development workflow with configurable compliance — enable any of HIPAA, HITRUST, ISO 27001, SOC 2 per repo (healthcare is one aspect, not a requirement). Implements RePPITS (Research, Propose, Plan, Implement, Test, Secure) with compliance gates that run against your diff before commit. Adaptive risk-tiered gates, a bounded autonomous fix loop, a goal-loop with an optimizable RICE-scored backlog, a shared team signals hub with a dynamic dashboard, resumable Claude Code Tasks, parallel sub-issues, and built-in token compression (zero-install, with an optional headroom upgrade). Slash commands: /run, /loop, /signals, /team-setup, /verify-frontend, /research-codebase, /make-proposals, /make-plan, /implement, /review-code, /secure, /resume.",
   "author": {
     "name": "Nils Widal",

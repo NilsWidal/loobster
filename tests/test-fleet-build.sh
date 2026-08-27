@@ -10,8 +10,21 @@ FLEET="$ROOT/bin/fleet-build.py"
 PASS=0; FAIL=0
 ok(){ echo "PASS: $1"; PASS=$((PASS+1)); }
 no(){ echo "FAIL: $1 ($2)"; FAIL=$((FAIL+1)); }
+skip(){ echo "SKIP: $1 ($2)"; }
 rmtree(){ python3 -c "import shutil,sys;shutil.rmtree(sys.argv[1],ignore_errors=True)" "$1"; }
 G(){ git -C "$1" -c user.email=t@t -c user.name=t "${@:2}" >/dev/null 2>&1; }
+
+# Locate a headless chromium shell for the JS-execution test (best-effort; the
+# static no-inline-handlers check above is the always-on guard).
+find_headless(){
+  local c
+  for c in "${CHROME_HEADLESS_SHELL:-}" \
+    "$HOME"/Library/Caches/ms-playwright/chromium_headless_shell-*/chrome-headless-shell-*/chrome-headless-shell \
+    "$HOME"/.cache/ms-playwright/chromium_headless_shell-*/chrome-headless-shell-*/chrome-headless-shell; do
+    [ -n "$c" ] && [ -x "$c" ] && { echo "$c"; return 0; }
+  done
+  command -v chromium-browser || command -v chromium || command -v google-chrome || return 1
+}
 
 mkrepo(){ # main with one done loop + a signal; feature branch with an active pr-lane loop
   local d; d="$(mktemp -d)"
@@ -66,6 +79,12 @@ EOF
   && grep -q 'personal-access-tokens/new' "$out/index.html"; } \
   && ok "interactive task board + token link in index.html" || no "task board" "missing pieces"
 
+# 2c. No inline event handlers (the XSS sink): controls run via data-act delegation only.
+{ grep -q 'data-act' "$out/index.html" \
+  && ! grep -qi 'onclick=' "$out/index.html" \
+  && ! grep -qi 'onsubmit=' "$out/index.html"; } \
+  && ok "no inline handlers (event delegation)" || no "inline handlers present" "onclick/onsubmit leaked"
+
 # 3. --days 0 prunes the (old-enough) feature branch... but default branch always stays.
 #    All commits are 'now', so instead verify the default branch survives an empty window
 #    by checking data.json still contains the main-branch loop with --days 0.
@@ -82,6 +101,36 @@ rmtree "$d"
 # 4. --out is required (no silent cwd pollution).
 d="$(mkrepo)"
 python3 "$FLEET" --root "$d" >/dev/null 2>&1; [ $? = 2 ] && ok "--out required" || no "--out required" "rc=$?"
+rmtree "$d"
+
+# 6. XSS execution guard: a malicious goalId / task title / pr URL must NOT run JS.
+#    Static no-inline-handlers is checked at 2c; this proves it at runtime when a
+#    headless browser is available (skips cleanly in a browserless CI).
+d="$(mktemp -d)"; G "$d" init -b main
+mkdir -p "$d/plans/loop/evil-tasks"
+printf -- "---\nstatus: active\ngoalId: ');window.__pwned=1//\ngoal: pwn\ncycle: 1\n---\n" > "$d/plans/loop/evil.md"
+printf -- '---\nstatus: open\ntitle: <img src=x onerror=window.__pwned=1>\nscore: 5\npr: javascript:window.__pwned=1\n---\n' > "$d/plans/loop/evil-tasks/001-x.md"
+G "$d" add -A; G "$d" commit -m evil
+python3 "$FLEET" --root "$d" --out "$d/_site" --repo acme/w >/dev/null 2>&1
+CHROME="$(find_headless 2>/dev/null)"
+if [ -z "$CHROME" ]; then
+  skip "XSS execution guard" "no headless chromium found"
+else
+  probe="$d/_site/probe.html"
+  python3 - "$d/_site/index.html" "$probe" <<'EOF'
+import sys, pathlib
+html = pathlib.Path(sys.argv[1]).read_text()
+html += ("<script>setTimeout(function(){document.title="
+         "'PROBE pwned='+(!!window.__pwned)"
+         "+' board='+(!!document.querySelector('#kanban .col, #kanban .empty'));},600)</script>")
+pathlib.Path(sys.argv[2]).write_text(html)
+EOF
+  title="$("$CHROME" --headless --disable-gpu --no-sandbox --virtual-time-budget=3000 \
+           --dump-dom "file://$probe" 2>/dev/null | grep -o '<title>PROBE[^<]*</title>')"
+  { echo "$title" | grep -q 'pwned=false' && echo "$title" | grep -q 'board=true'; } \
+    && ok "XSS execution guard (no injected JS ran; board rendered)" \
+    || no "XSS execution guard" "title=[$title]"
+fi
 rmtree "$d"
 
 # 5. Not a git repo -> exit 2; --help -> exit 0.

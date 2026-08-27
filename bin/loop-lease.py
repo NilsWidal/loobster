@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """loop-lease — an atomic single-runner lease for Loobster goal-loops.
 
-The goal-loop must run only ONE instance per worktree (so a ScheduleWakeup/cron
+The goal-loop must run only ONE instance per loop marker (so a ScheduleWakeup/cron
 re-entry, or a parallel headless run, backs off instead of colliding). The marker
 frontmatter (`runner` / `runnerHeartbeatAt`) is a human-readable mirror, but the
 *authoritative* mutex is a lock file claimed atomically here with O_CREAT|O_EXCL —
@@ -9,7 +9,14 @@ so two processes racing to acquire cannot both win.
 
 Lock file: `<marker>.lock`, containing `<runner-id>\n<epoch-seconds>`.
 
+The <runner-id> MUST be unique per running instance -- generate one with `newid`
+at the start of each invocation and reuse it for that instance's acquire/refresh/
+release. Do NOT derive it from the goal/branch or reuse the marker's stored
+`runner:`: a re-entry that reuses the live holder's id hits the "already held"
+path and mistakes the live lease for its own, defeating the mutex.
+
 Usage:
+  loop-lease.py newid                                       # print a fresh unique runner id
   loop-lease.py acquire <marker.md> <runner-id> [--ttl N]   # claim or take over a stale lease
   loop-lease.py refresh <marker.md> <runner-id> [--ttl N]   # bump the heartbeat (must hold it)
   loop-lease.py release <marker.md> <runner-id>             # release (must hold it)
@@ -27,6 +34,7 @@ cycle makes a live runner look stale mid-act, so a cron/wakeup re-entry "takes o
 and two instances collide on the same worktree. The cost of a long TTL is slower
 takeover after a hard crash (bounded by TTL + re-entry cadence); pass --ttl to tune.
 """
+import fcntl
 import os
 import sys
 import time
@@ -76,22 +84,45 @@ def acquire(marker, runner, ttl):
     if _fresh(ts, ttl):                         # a live, different runner holds it
         print(f"held by {holder} (age {int(time.time() - ts)}s)")
         return 3
-    # Stale lease: take it over. Remove then re-create with O_EXCL so a concurrent
-    # takeover race still has exactly one winner.
+    return _take_over_stale(path, runner, ttl, holder, ts)
+
+
+def _take_over_stale(path, runner, ttl, holder, ts):
+    """Take over a lease we observed as stale -- with EXACTLY one winner under a race.
+
+    The old code did os.remove()+O_EXCL-create, which double-wins: two runners both
+    see it stale, A removes+creates, then B's *blind* os.remove() deletes A's fresh
+    lock and B re-creates -- both return 0, so two runners drive the same loop.
+
+    We serialize the break with an flock on a gate file. flock is exclusive AND is
+    released by the OS when the holder's fd closes -- including on crash -- so there
+    is no orphaned-lock problem to reason about (unlike a plain lock *file*, whose
+    stale-cleanup is itself a race). Under the flock we re-read the lease: if a prior
+    taker already refreshed it we yield; otherwise we alone break the stale lock and
+    write a fresh one via an atomic tmp+os.replace (the path is never momentarily
+    empty). Deterministic single winner; crash-safe with no timeout/self-heal needed.
+    """
+    gate = path + ".steal"
+    fd = os.open(gate, os.O_CREAT | os.O_RDWR, 0o644)
     try:
-        os.remove(path)
-    except FileNotFoundError:
-        pass
-    if _write_lock_excl(path, runner):
+        fcntl.flock(fd, fcntl.LOCK_EX)          # blocks; exactly one holder at a time
+        cur_holder, cur_ts = _read_lock(path)   # re-read under the flock
+        if cur_holder and cur_holder != runner and _fresh(cur_ts, ttl):
+            print(f"held by {cur_holder} (age {int(time.time() - cur_ts)}s)")
+            return 3
+        _force_write(path, runner)
         print(f"acquired {runner} (took over stale lease from {holder})")
         return 0
-    holder, ts = _read_lock(path)              # lost the takeover race
-    print(f"held by {holder} (age {int(time.time() - ts)}s)")
-    return 3
+    finally:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
 
 
 def _force_write(path, runner):
-    tmp = path + ".tmp"
+    # Per-pid tmp so a takeover's write can't collide with an incumbent's concurrent
+    # refresh on a shared tmp name (which raced to an unhandled FileNotFoundError on
+    # the second os.replace). Each writer replaces atomically from its own tmp.
+    tmp = f"{path}.tmp.{os.getpid()}"
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(f"{runner}\n{int(time.time())}\n")
     os.replace(tmp, path)
@@ -149,6 +180,11 @@ def main():
             return 2
     cmd = argv[0]
     rest = argv[1:]
+    if cmd == "newid":
+        # host-pid-epoch-rand: unique per invocation without needing coordination.
+        print(f"{os.uname().nodename.split('.')[0]}-{os.getpid()}-{int(time.time())}-"
+              f"{os.urandom(3).hex()}")
+        return 0
     if cmd == "status":
         if len(rest) != 1:
             print("usage: loop-lease.py status <marker.md> [--ttl N]"); return 2

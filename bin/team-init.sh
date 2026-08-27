@@ -15,10 +15,11 @@
 #      Each copy is stamped "vendored from loobster vX.Y.Z"; re-run with
 #      --force after a plugin upgrade to refresh them.
 #   2. Scaffolds signals/README.md and plans/loop/ (the marker directory).
-#   3. Enables GitHub Pages (Source: GitHub Actions) via `gh api` — after a
-#      visibility check: on a non-private repo it REFUSES (exit 3) unless
-#      --public-ok, because Pages there serves your business state to the
-#      world. See compliance/org-controls-audit.md.
+#   3. Enables GitHub Pages (Source: GitHub Actions) via `gh api` — after an
+#      EXPOSURE check (visibility + plan): GitHub serves Pages publicly for every
+#      repo except a private repo on GitHub Enterprise Cloud, so a world-readable
+#      board is REFUSED (exit 3) unless --public-ok. After enabling it reads the
+#      live Pages object back and reports the real URL + public/private.
 #   4. Optionally (--protect-main) requires one approving PR review to land
 #      on the default branch.
 #
@@ -31,8 +32,9 @@ team-init.sh — make a repo team-ready on GitHub in one command (/team-setup)
   bash bin/team-init.sh [--repo <dir>] [flags]
 
   --repo <dir>         target repo (default: current directory)
-  --public-ok          allow enabling Pages on a non-private repo (an explicit
-                       human decision — the board becomes world-readable)
+  --public-ok          accept a world-readable Pages board (any public repo, OR a
+                       private repo that is NOT on GitHub Enterprise Cloud — where
+                       GitHub still serves Pages publicly). An explicit human call.
   --no-pages           vendor + scaffold only; skip the gh/Pages step
   --protect-main       require 1 approving PR review on the default branch
   --force              refresh vendored files (after a plugin upgrade)
@@ -126,7 +128,7 @@ fi
 MANUAL_PAGES="enable manually: repo Settings -> Pages -> Source: GitHub Actions"
 NWO=""; GH_READY=0
 if [ "$DRY" = 1 ]; then
-  [ "$NO_PAGES" = 1 ] || echo "Pages: would check repo visibility, then enable via gh api (build_type=github_actions)"
+  [ "$NO_PAGES" = 1 ] || echo "Pages: would check real exposure (visibility + plan), then enable via gh api and read back the live URL"
   [ "$PROTECT" = 0 ] || echo "Protection: would require 1 approving PR review on the default branch"
 elif [ "$NO_PAGES" = 1 ] && [ "$PROTECT" = 0 ]; then
   echo "Pages: skipped (--no-pages); $MANUAL_PAGES"
@@ -145,21 +147,59 @@ fi
 
 if [ "$GH_READY" = 1 ] && [ "$NO_PAGES" != 1 ]; then
   VIS="$( (cd "$REPO" && gh repo view --json visibility -q .visibility) 2>/dev/null | tr '[:upper:]' '[:lower:]' )"
-  if [ "$VIS" != "private" ] && [ "$PUBLIC_OK" != 1 ]; then
+  # The gate must reflect ACTUAL Pages exposure, not repo visibility: GitHub serves
+  # a repo's Pages site PUBLICLY for every plan except a private repo on GitHub
+  # Enterprise Cloud. So a private repo on Free/Pro/Team publishes a world-readable
+  # board -- exactly what the old repo-visibility check waved through.
+  PLAN="$( (cd "$REPO" && gh api "repos/$NWO" --jq '.organization.plan.name // .owner.plan.name // empty') 2>/dev/null | tr '[:upper:]' '[:lower:]' )"
+  ENTERPRISE=0; case "$PLAN" in *enterprise*) ENTERPRISE=1;; esac
+  PAGES_PUBLIC=1
+  [ "$VIS" = "private" ] && [ "$ENTERPRISE" = 1 ] && PAGES_PUBLIC=0
+  if [ "$PAGES_PUBLIC" = 1 ] && [ "$PUBLIC_OK" != 1 ]; then
     cat >&2 <<EOF
-REFUSING to enable GitHub Pages: $NWO is ${VIS:-of unknown visibility}.
-Pages on a non-private repo serves your loop goals, outcomes, and signals to
-the world. Setup files were still vendored; nothing was published.
-  - Non-sensitive project and you accept public visibility? re-run with --public-ok
-  - PHI-adjacent work? never enable this — see compliance/org-controls-audit.md
-  - Private Pages needs GitHub Enterprise/Team (an org-level fact, not scriptable)
+REFUSING to enable GitHub Pages: the published site would be WORLD-READABLE.
+  repo $NWO — visibility: ${VIS:-unknown}, plan: ${PLAN:-unknown}
+GitHub serves Pages publicly for every repo EXCEPT a private repo on GitHub
+Enterprise Cloud, so your loop goals, task titles, and signals would be public.
+Setup files were vendored; nothing was published.
+  - Non-sensitive project and you accept a public board? re-run with --public-ok
+  - PHI-adjacent work? never enable this — see the loobster org-controls audit
+  - Want it private? host the repo in a GitHub Enterprise Cloud org
 EOF
     exit 3
   fi
-  if (cd "$REPO" && gh api -X POST "repos/$NWO/pages" -f build_type=github_actions >/dev/null 2>&1); then
-    echo "Pages: enabled on $NWO (Source: GitHub Actions)"
-  elif (cd "$REPO" && gh api -X PUT "repos/$NWO/pages" -f build_type=github_actions >/dev/null 2>&1); then
-    echo "Pages: already enabled on $NWO — build_type set to github_actions"
+  if (cd "$REPO" && gh api -X POST "repos/$NWO/pages" -f build_type=github_actions >/dev/null 2>&1) \
+     || (cd "$REPO" && gh api -X PUT "repos/$NWO/pages" -f build_type=github_actions >/dev/null 2>&1); then
+    # The plan check is necessary but not sufficient -- an Enterprise org can still
+    # serve a private repo's Pages PUBLICLY by policy. So the live read-back, not our
+    # classification, is authoritative: if we proceeded only because it looked
+    # private (Enterprise, no --public-ok) but GitHub actually serves it public, we
+    # roll it back rather than leave a surprise-public board up.
+    PG="$( (cd "$REPO" && gh api "repos/$NWO/pages" --jq '(.html_url // "?") + "\t" + ((.public // true)|tostring)') 2>/dev/null )"
+    if [ -z "$PG" ]; then
+      echo "Pages: enabled, but the exposure read-back failed — verify it in Settings → Pages before sharing" >&2
+    else
+      URL="${PG%%$'\t'*}"; ISPUB="${PG##*$'\t'}"
+      if [ "$ISPUB" != "true" ]; then
+        echo "Pages: live (Source: GitHub Actions) at ${URL} — private (Enterprise)"
+      elif [ "$PUBLIC_OK" = 1 ]; then
+        echo "Pages: live (Source: GitHub Actions) at ${URL} — ⚠ PUBLIC / world-readable (accepted via --public-ok)"
+      else
+        if (cd "$REPO" && gh api -X DELETE "repos/$NWO/pages" >/dev/null 2>&1); then
+          cat >&2 <<EOF
+Pages: DISABLED again — GitHub was serving ${URL} PUBLICLY despite the
+private+Enterprise classification (this org's Pages policy allows public sites).
+Nothing is left published. Re-run with --public-ok to accept a public board.
+EOF
+        else
+          cat >&2 <<EOF
+Pages: ⚠ STILL PUBLIC — ${URL} is world-readable and the rollback (DELETE) FAILED.
+Disable it NOW: repo Settings → Pages, or run: gh api -X DELETE repos/$NWO/pages
+EOF
+        fi
+        exit 3
+      fi
+    fi
   else
     echo "Pages: API call failed (admin rights needed on $NWO?); $MANUAL_PAGES"
   fi
