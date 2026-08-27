@@ -37,6 +37,8 @@ team-init.sh — make a repo team-ready on GitHub in one command (/team-setup)
                        GitHub still serves Pages publicly). An explicit human call.
   --no-pages           vendor + scaffold only; skip the gh/Pages step
   --protect-main       require 1 approving PR review on the default branch
+  --frontend-verify    also vendor bin/screenshot.mjs + playwright-verify.yml so
+                       /verify-frontend's CI path works without a hand-copy
   --force              refresh vendored files (after a plugin upgrade)
   --dry-run            print the plan, write nothing, call nothing
   --plugin-root <dir>  vendor from here (default: this script's parent dir)
@@ -45,17 +47,18 @@ Exit: 0 ok · 2 usage/not-a-repo/missing-source · 3 compliance refusal
 EOF
 }
 
-REPO="$(pwd)"; PUBLIC_OK=0; NO_PAGES=0; PROTECT=0; FORCE=0; DRY=0
+REPO="$(pwd)"; PUBLIC_OK=0; NO_PAGES=0; PROTECT=0; FORCE=0; DRY=0; FRONTEND=0
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 while [ $# -gt 0 ]; do case "$1" in
-  --repo)         REPO="${2:?--repo needs a dir}"; shift 2;;
-  --plugin-root)  PLUGIN_ROOT="${2:?--plugin-root needs a dir}"; shift 2;;
-  --public-ok)    PUBLIC_OK=1; shift;;
-  --no-pages)     NO_PAGES=1; shift;;
-  --protect-main) PROTECT=1; shift;;
-  --force)        FORCE=1; shift;;
-  --dry-run)      DRY=1; shift;;
-  -h|--help)      usage; exit 0;;
+  --repo)            REPO="${2:?--repo needs a dir}"; shift 2;;
+  --plugin-root)     PLUGIN_ROOT="${2:?--plugin-root needs a dir}"; shift 2;;
+  --public-ok)       PUBLIC_OK=1; shift;;
+  --no-pages)        NO_PAGES=1; shift;;
+  --protect-main)    PROTECT=1; shift;;
+  --frontend-verify) FRONTEND=1; shift;;
+  --force)           FORCE=1; shift;;
+  --dry-run)         DRY=1; shift;;
+  -h|--help)         usage; exit 0;;
   *) echo "unknown flag: $1" >&2; usage >&2; exit 2;;
 esac; done
 
@@ -79,7 +82,8 @@ vendor(){ # $1 src-rel-to-plugin  $2 dst-rel-to-repo  $3 comment style: hash|htm
 import sys, pathlib
 src, dst, style, stamp = sys.argv[1:5]
 text = pathlib.Path(src).read_text(encoding="utf-8")
-line = {"hash": "# %s\n" % stamp, "html": "<!-- %s -->\n" % stamp}[style]
+line = {"hash": "# %s\n" % stamp, "html": "<!-- %s -->\n" % stamp,
+        "js": "// %s\n" % stamp}[style]
 if text.startswith("#!"):                      # keep the shebang on line 1
     head, _, rest = text.partition("\n")
     text = head + "\n" + line + rest
@@ -89,7 +93,7 @@ p = pathlib.Path(dst)
 p.parent.mkdir(parents=True, exist_ok=True)
 p.write_text(text, encoding="utf-8")
 PY
-  case "$dst" in *.py|*.sh) chmod +x "$dst";; esac
+  case "$dst" in *.py|*.sh|*.mjs) chmod +x "$dst";; esac
   echo "  vendor $2 (loobster v$VERSION)"
 }
 
@@ -107,6 +111,15 @@ vendor templates/fleet-pages.yml        .github/workflows/fleet-pages.yml hash
 vendor bin/fleet-build.py               bin/fleet-build.py                hash
 vendor bin/signals-build.py             bin/signals-build.py              hash
 vendor templates/signals-dashboard.html templates/signals-dashboard.html  html
+
+if [ "$FRONTEND" = 1 ]; then
+  # /verify-frontend's CI path runs `node bin/screenshot.mjs` from the repo checkout,
+  # so the script must be vendored too (same reason as the fleet scripts) -- otherwise
+  # the workflow MODULE_NOT_FOUNDs on its first run.
+  echo "Vendoring frontend-verify (--frontend-verify):"
+  vendor bin/screenshot.mjs             bin/screenshot.mjs                    js
+  vendor templates/playwright-verify.yml .github/workflows/playwright-verify.yml hash
+fi
 
 echo "Scaffolding:"
 scaffold signals/README.md "# Signals hub

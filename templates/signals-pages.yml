@@ -11,7 +11,8 @@
 #     • a PRIVATE repo with **private** GitHub Pages (GitHub Enterprise/Team), or
 #     • a non-sensitive project where public signals are acceptable.
 #   NEVER enable on a public repo handling PHI/PHI-adjacent work. This is a
-#   data-path decision — see compliance/org-controls-audit.md.
+#   data-path decision — see the loobster plugin's compliance/org-controls-audit.md
+#   (that file lives in the plugin; it is not vendored into your repo).
 #
 # Setup: Settings → Pages → Source: "GitHub Actions". Then copy this file to
 #        .github/workflows/signals-pages.yml and commit.
