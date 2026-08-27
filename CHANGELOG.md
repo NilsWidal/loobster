@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.15.2 — Integrity: honest audit template, closed vendoring gap, resilient signals build
+
+The rest of the `/run` gap analysis — the non-security findings about things the plugin ships that don't quite hold up when a team adopts them.
+
+- **The org-controls audit shipped as a filled-in record from a different org.** `compliance/org-controls-audit.md` carried `PASS` marks dated 2026-04-12 against a `CLAUDE.md`, a `CODEOWNERS`, and a `docs/BAA_REGISTRY.md` that don't exist in this repo (let alone an adopter's), plus overdue review dates and hardcoded AWS/Aurora/Linear specifics — a compliance tool shipping a false compliance record. Reset to an honest **blank template**: no pre-filled PASS marks, a "fill this in for YOUR org before relying on it" header, review dates as placeholders, and the stack-specific commands relabeled as examples. Structure kept; fabricated results removed.
+- **`/verify-frontend`'s CI path reproduced the pre-0.14 vendoring bug.** `playwright-verify.yml` runs `node bin/screenshot.mjs` from the repo checkout, but nothing vendored that script — so a user who copied only the workflow got `MODULE_NOT_FOUND` on the first run, exactly the failure `/team-setup` was built to eliminate. New **`--frontend-verify`** flag on `team-init.sh` vendors `bin/screenshot.mjs` **and** `templates/playwright-verify.yml` together (version-stamped, executable); `commands/verify-frontend.md` now points at it instead of a hand-copy. Also fixed two bugs in the template the audit found: the `(npm run start &) || (npm run dev &)` fallback was **dead** (backgrounding a subshell returns 0, so `dev` never ran) — now it picks `start`, else `dev`, else fails loudly; and the declared `workflow_dispatch` `paths` input was **inert** — now it feeds `ROUTES`.
+- **One malformed signal could take down the whole fleet dashboard.** `fleet-pages.yml` ran `signals-build.py --strict` under `set -e`, so a single PHI-shaped or malformed signal failed the entire Pages deploy — including the *fleet* board that was already built. The signals build is now **isolated**: on a strict failure it skips only the `/signals/` sub-board and emits a visible `::warning::` annotation, while the fleet board deploys regardless. The two vendored templates' bare `compliance/org-controls-audit.md` references (which dangle in an adopter repo, since `compliance/` isn't vendored) now name the plugin explicitly.
+- Tests: **113 passing** across 11 suites (new `--frontend-verify` vendoring coverage).
+
 ## 0.15.1 — Security: dashboard XSS, lease race, and a Pages exposure hole
 
 A self-audit (`/run` gap analysis) turned up three security issues in shipped code; this release fixes all three, each with the regression test whose absence let it ship. Independently reviewed (a separate correctness pass and a separate security pass) before merge.

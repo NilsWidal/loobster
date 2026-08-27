@@ -1,7 +1,8 @@
 # Verifiable frontend layer → screenshots attached to the PR (TEMPLATE).
-# Copy into your repo's .github/workflows/, and copy bin/screenshot.mjs from the
-# loobster plugin into your repo's bin/. No external accounts: screenshots are
-# uploaded as GitHub Actions artifacts (downloadable from the PR's Checks tab) and a
+# Vendor this together with bin/screenshot.mjs by running `/team-setup --frontend-verify`
+# (or copy both from the loobster plugin by hand). The workflow runs `node bin/screenshot.mjs`
+# from the repo checkout, so that script MUST be present in your repo. No external accounts:
+# screenshots upload as GitHub Actions artifacts (downloadable from the PR's Checks tab) and a
 # native PR comment (via GITHUB_TOKEN) summarizes the result + links the artifact.
 #
 # Customize the two marked steps for your app (install + start). The screenshot step
@@ -35,7 +36,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BASE_URL: http://localhost:3000
-      ROUTES: "/"            # <-- set the routes your PR affects, space-separated
+      # PR runs: change "/" to the routes your PRs affect (space-separated).
+      # Manual runs: the workflow_dispatch "paths" input overrides it.
+      ROUTES: ${{ github.event.inputs.paths || '/' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -52,7 +55,15 @@ jobs:
       # --- CUSTOMIZE: start your app, then wait for it ---
       - name: Start app
         run: |
-          (npm run start &) || (npm run dev &)
+          # Pick start, else dev, else fail loudly (the old `(a&)||(b&)` always
+          # ran `a` because backgrounding a subshell returns 0 — the fallback was dead).
+          if node -e "process.exit(require('./package.json').scripts?.start?0:1)"; then
+            npm run start &
+          elif node -e "process.exit(require('./package.json').scripts?.dev?0:1)"; then
+            npm run dev &
+          else
+            echo "no 'start' or 'dev' script in package.json"; exit 1
+          fi
           npx --yes wait-on "$BASE_URL" --timeout 120000
 
       - name: Capture screenshots

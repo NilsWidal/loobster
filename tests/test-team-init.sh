@@ -59,6 +59,23 @@ out="$(bash "$INIT" --repo "$d" --no-pages 2>&1)"; rc=$?
 python3 "$d/bin/fleet-build.py" --help 2>/dev/null | grep -q fleet-build \
   && ok "vendored fleet-build.py runs" || no "vendored script broken" "--help failed"
 
+# 2a. --frontend-verify also vendors screenshot.mjs + playwright-verify.yml, stamped,
+#     shebang preserved, still valid JS (the workflow's `node bin/screenshot.mjs` path).
+dfe="$(mkrepo)"
+bash "$INIT" --repo "$dfe" --no-pages --frontend-verify >/dev/null 2>&1
+{ [ -f "$dfe/bin/screenshot.mjs" ] && [ -f "$dfe/.github/workflows/playwright-verify.yml" ] \
+  && head -1 "$dfe/bin/screenshot.mjs" | grep -q '^#!' \
+  && sed -n 2p "$dfe/bin/screenshot.mjs" | grep -q "vendored from loobster" \
+  && [ -x "$dfe/bin/screenshot.mjs" ] \
+  && { ! command -v node >/dev/null 2>&1 || node --check "$dfe/bin/screenshot.mjs"; } \
+  && ! grep -q 'npm run start &) ||' "$dfe/.github/workflows/playwright-verify.yml"; } \
+  && ok "--frontend-verify vendors screenshot.mjs + workflow (valid, dead-fallback removed)" \
+  || no "frontend-verify vendoring" "missing/broken"
+# without the flag, they are NOT vendored
+{ [ ! -f "$d/bin/screenshot.mjs" ] && [ ! -f "$d/.github/workflows/playwright-verify.yml" ]; } \
+  && ok "frontend-verify files not vendored without the flag" || no "unexpected frontend files" ""
+rmtree "$dfe"
+
 # 3. Idempotent: a re-run without --force leaves local edits alone; --force refreshes.
 echo "# local edit" >> "$d/bin/fleet-build.py"
 out="$(bash "$INIT" --repo "$d" --no-pages 2>&1)"

@@ -21,7 +21,8 @@
 #     • a PRIVATE repo with **private** GitHub Pages (GitHub Enterprise/Team), or
 #     • a non-sensitive project where public visibility is acceptable.
 #   NEVER enable on a public repo handling PHI-adjacent work.
-#   See compliance/org-controls-audit.md.
+#   See the loobster plugin's compliance/org-controls-audit.md (this file is not
+#   vendored into your repo; it lives in the plugin).
 #
 # Setup: Settings → Pages → Source: "GitHub Actions". Copy this file to
 #        .github/workflows/fleet-pages.yml and commit.
@@ -63,12 +64,19 @@ jobs:
         run: python3 bin/fleet-build.py --out _site --days 14
 
       - name: Build signals board at /signals/ (if the hub exists)
+        # Isolated from the fleet board: --strict PHI/malformed check gates ONLY the
+        # /signals/ sub-board. A single bad signal must not take down the fleet board
+        # (already built in _site/ above) -- so on failure we skip /signals/, emit a
+        # visible warning annotation, and let the job deploy the fleet board anyway.
         run: |
           if [ -d signals ]; then
-            python3 bin/signals-build.py signals --strict
-            mkdir -p _site/signals
-            cp templates/signals-dashboard.html _site/signals/index.html
-            cp signals/data.js signals/data.json _site/signals/ 2>/dev/null || true
+            if python3 bin/signals-build.py signals --strict; then
+              mkdir -p _site/signals
+              cp templates/signals-dashboard.html _site/signals/index.html
+              cp signals/data.js signals/data.json _site/signals/ 2>/dev/null || true
+            else
+              echo "::warning title=Signals board skipped::A PHI-shaped or malformed signal failed 'signals-build.py --strict'. The /signals/ board was NOT published (the fleet board still deployed). Fix the flagged signal, then push again."
+            fi
           fi
 
       - uses: actions/configure-pages@v5
