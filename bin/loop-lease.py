@@ -34,10 +34,47 @@ cycle makes a live runner look stale mid-act, so a cron/wakeup re-entry "takes o
 and two instances collide on the same worktree. The cost of a long TTL is slower
 takeover after a hard crash (bounded by TTL + re-entry cadence); pass --ttl to tune.
 """
-import fcntl
 import os
+import socket
 import sys
 import time
+
+# Portable exclusive advisory lock on an open fd -- flock on POSIX, msvcrt on
+# Windows. Both auto-release when the fd is closed, including on crash, which is
+# why the stale-lease takeover uses one (no orphaned-lock cleanup to race).
+try:
+    import fcntl
+
+    def _lock_exclusive(fd):
+        fcntl.flock(fd, fcntl.LOCK_EX)
+
+    def _unlock(fd):
+        fcntl.flock(fd, fcntl.LOCK_UN)
+except ImportError:                                    # Windows
+    try:
+        import msvcrt
+
+        def _lock_exclusive(fd):
+            os.lseek(fd, 0, os.SEEK_SET)
+            while True:                                # LK_LOCK retries ~10s then raises
+                try:
+                    msvcrt.locking(fd, msvcrt.LK_LOCK, 1)
+                    return
+                except OSError:
+                    time.sleep(0.05)
+
+        def _unlock(fd):
+            try:
+                os.lseek(fd, 0, os.SEEK_SET)
+                msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+            except OSError:
+                pass
+    except ImportError:                                # no locking primitive at all
+        def _lock_exclusive(fd):
+            raise RuntimeError("no file-locking primitive available (need fcntl or msvcrt)")
+
+        def _unlock(fd):
+            pass
 
 DEFAULT_TTL = 3600
 
@@ -94,19 +131,21 @@ def _take_over_stale(path, runner, ttl, holder, ts):
     see it stale, A removes+creates, then B's *blind* os.remove() deletes A's fresh
     lock and B re-creates -- both return 0, so two runners drive the same loop.
 
-    We serialize the break with an flock on a gate file. flock is exclusive AND is
-    released by the OS when the holder's fd closes -- including on crash -- so there
-    is no orphaned-lock problem to reason about (unlike a plain lock *file*, whose
-    stale-cleanup is itself a race). Under the flock we re-read the lease: if a prior
-    taker already refreshed it we yield; otherwise we alone break the stale lock and
-    write a fresh one via an atomic tmp+os.replace (the path is never momentarily
-    empty). Deterministic single winner; crash-safe with no timeout/self-heal needed.
+    We serialize the break with an exclusive advisory lock on a gate file (flock on
+    POSIX, msvcrt on Windows). It is exclusive AND released by the OS when the fd
+    closes -- including on crash -- so there is no orphaned-lock problem to reason
+    about (unlike a plain lock *file*, whose stale-cleanup is itself a race). Under
+    it we re-read the lease: if a prior taker already refreshed it we yield;
+    otherwise we alone break the stale lock and write a fresh one via an atomic
+    tmp+os.replace (the path is never momentarily empty). Deterministic single
+    winner; crash-safe with no timeout/self-heal needed.
     """
     gate = path + ".steal"
     fd = os.open(gate, os.O_CREAT | os.O_RDWR, 0o644)
+    os.write(fd, b"\0")                         # >=1 byte so msvcrt has a region to lock
     try:
-        fcntl.flock(fd, fcntl.LOCK_EX)          # blocks; exactly one holder at a time
-        cur_holder, cur_ts = _read_lock(path)   # re-read under the flock
+        _lock_exclusive(fd)                     # blocks; exactly one holder at a time
+        cur_holder, cur_ts = _read_lock(path)   # re-read under the lock
         if cur_holder and cur_holder != runner and _fresh(cur_ts, ttl):
             print(f"held by {cur_holder} (age {int(time.time() - cur_ts)}s)")
             return 3
@@ -114,7 +153,7 @@ def _take_over_stale(path, runner, ttl, holder, ts):
         print(f"acquired {runner} (took over stale lease from {holder})")
         return 0
     finally:
-        fcntl.flock(fd, fcntl.LOCK_UN)
+        _unlock(fd)
         os.close(fd)
 
 
@@ -182,8 +221,8 @@ def main():
     rest = argv[1:]
     if cmd == "newid":
         # host-pid-epoch-rand: unique per invocation without needing coordination.
-        print(f"{os.uname().nodename.split('.')[0]}-{os.getpid()}-{int(time.time())}-"
-              f"{os.urandom(3).hex()}")
+        host = (socket.gethostname() or "host").split(".")[0]
+        print(f"{host}-{os.getpid()}-{int(time.time())}-{os.urandom(3).hex()}")
         return 0
     if cmd == "status":
         if len(rest) != 1:
