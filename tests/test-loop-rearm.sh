@@ -95,4 +95,26 @@ printf 'no frontmatter here\nstatus: active in prose\n' > "$d/plans/loop/nofm.md
 out="$(echo "{\"cwd\":\"$d\"}" | "$HOOK")"
 { ! blocks "$out"; } && ok "no-frontmatter marker -> allow (fail open)" || no "no-frontmatter fail-open" "$out"; rmtree "$d"
 
+# 8. Session scoping via the [[loobster-loop goalId=X]] sentinel (multi-loop worktree).
+mk2(){ # mk2 <statusA> <statusB> -> dir with plans/loop/{a,b}.md at those statuses
+  local d; d="$(mktemp -d)"; mkdir -p "$d/plans/loop"
+  printf -- '---\nstatus: %s\ngoalId: aaa\n---\ngoal\n' "$1" > "$d/plans/loop/a.md"
+  printf -- '---\nstatus: %s\ngoalId: bbb\n---\ngoal\n' "$2" > "$d/plans/loop/b.md"; echo "$d"; }
+
+# 8a. Sentinel names MY loop (aaa), which is active -> block (keep my loop alive).
+d="$(mk2 active active)"
+out="$(echo "{\"cwd\":\"$d\",\"last_assistant_message\":\"work... [[loobster-loop goalId=aaa]]\"}" | "$HOOK")"
+{ blocks "$out" && echo "$out" | grep -q "aaa" && ! echo "$out" | grep -q "bbb"; } \
+  && ok "sentinel scopes block to the session's own loop" || no "sentinel scope" "$out"; rmtree "$d"
+
+# 8b. My loop (aaa) is DONE but a SIBLING (bbb) is active; I named aaa -> allow (I can stop).
+d="$(mk2 done active)"
+out="$(echo "{\"cwd\":\"$d\",\"last_assistant_message\":\"done [[loobster-loop goalId=aaa]]\"}" | "$HOOK")"
+{ ! blocks "$out"; } && ok "own loop done + sibling active -> allow (not held hostage)" || no "sibling scope" "$out"; rmtree "$d"
+
+# 8c. No sentinel in the message -> legacy behavior (block for any active loop).
+d="$(mk2 done active)"
+out="$(echo "{\"cwd\":\"$d\",\"last_assistant_message\":\"no sentinel here\"}" | "$HOOK")"
+{ blocks "$out"; } && ok "no sentinel -> legacy block (no regression)" || no "legacy fallback" "$out"; rmtree "$d"
+
 echo "----"; echo "$PASS passed, $FAIL failed"; [ "$FAIL" -eq 0 ]

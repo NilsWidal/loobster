@@ -11,6 +11,16 @@ Durable marker: `plans/loop/<slug>.md` frontmatter `status: active|done`. The lo
 sets `active` at setup and `done` on exit/escalation. To stop a loop by hand, set
 `status: done` (or delete the file), or set LOOBSTER_LOOP_REARM=0.
 
+SESSION SCOPING (multiple loops in one worktree):
+  Claude Code doesn't expose a session's own id in-session, so a loop can't tag its
+  marker with an owner. Instead the loop stamps each turn's output with a sentinel
+  `[[loobster-loop goalId=<slug>]]`; the Stop payload carries that last message, so
+  this hook blocks only for the loop(s) the CURRENT session named -- a session whose
+  own loop finished can stop even if a sibling loop (another session's) is still
+  active. No sentinel in the message -> legacy behavior (block for any active loop).
+  Cleanest of all: give each concurrent loop its own git worktree, and cwd isolates
+  them completely.
+
 RE-BLOCK POLICY (bounded, progress-aware — not one-nudge):
   The old behavior allowed any stop with `stop_hook_active` set, so the hook could
   nudge exactly once per natural stop; a model that stopped twice in a row killed
@@ -63,6 +73,17 @@ def _loops_root(cwd):
             break
         p = parent
     return cwd
+
+
+def _owned_goalids(payload):
+    """goalIds this session named in its last turn via a `[[loobster-loop goalId=X]]`
+    sentinel (loop.md prints it each checkpoint). Empty set = the session didn't say,
+    so the caller keeps the legacy "any active loop" behavior. This is how the hook
+    scopes to THIS session's loop when several loops share one worktree: Claude Code
+    doesn't expose the session's own id in-session, but the Stop payload carries the
+    turn's last assistant message, which the loop can stamp."""
+    msg = payload.get("last_assistant_message") or ""
+    return set(re.findall(r"\[\[loobster-loop\s+goalId=([^\s\]]+)\]\]", msg))
 
 
 def _active_loops(cwd):
@@ -136,6 +157,17 @@ def main():
     active = _active_loops(cwd)
     if not active:
         allow()
+
+    # Scope to the loop(s) THIS session is driving, when it told us (multi-loop-in-one-
+    # worktree). A session whose own loop is done/paused must be free to stop even if a
+    # SIBLING loop (another session's) is still active. If the session didn't stamp a
+    # sentinel, keep the legacy behavior: block for any active loop (no regression).
+    owned = _owned_goalids(payload)
+    if owned:
+        mine = [(n, fp) for (n, fp) in active if n in owned]
+        if not mine:
+            allow()                    # my loop(s) aren't active; siblings aren't mine
+        active = mine
 
     try:
         max_blocks = int(os.environ.get("LOOBSTER_LOOP_REARM_MAX", DEFAULT_MAX_BLOCKS))

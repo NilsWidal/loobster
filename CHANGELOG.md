@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.15.3 — Parallel loops: cross-platform lease + session-scoped Stop hook
+
+Two follow-ups from the parallel-loops discussion.
+
+- **The lease is now cross-platform.** `bin/loop-lease.py` imported `fcntl` at module top and used `os.uname()` in `newid` — both Unix-only, so the whole module failed to load on native-Windows Python. The exclusive-lock the stale-takeover needs now goes through a portable helper (`fcntl.flock` on POSIX, `msvcrt.locking` on Windows — both auto-released by the OS on crash, which is the property the takeover relies on), `newid` uses `socket.gethostname()`, and a test loads the module with `fcntl` masked to prove the Windows path. (The bash tooling around it is still Unix-first; this just stops the Python lease from being the thing that breaks.)
+- **The Stop hook no longer holds a finished session hostage to a sibling loop.** When two loops share one worktree, the re-arm hook blocked a stop while *any* marker was `active` — so a session whose own loop was `done` got nudged to resume a loop it didn't start. Claude Code doesn't expose a session's own id in-session (so a loop can't tag its marker with an owner), but the Stop payload carries the turn's last message — so the loop now stamps each turn with `[[loobster-loop goalId=<slug>]]` and `bin/loop-rearm.py` scopes re-arm to the loop(s) the current session named. No sentinel → the previous "any active loop" behavior (no regression). The genuinely clean answer is still one worktree per loop (cwd isolates everything), now reinforced in `loop.md`.
+- Tests: **117 passing** across 11 suites.
+
 ## 0.15.2 — Integrity: honest audit template, closed vendoring gap, resilient signals build
 
 The rest of the `/run` gap analysis — the non-security findings about things the plugin ships that don't quite hold up when a team adopts them.

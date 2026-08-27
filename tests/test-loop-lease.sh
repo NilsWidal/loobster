@@ -112,5 +112,18 @@ out="$(python3 "$LEASE" acquire "$NM" "$(python3 "$LEASE" newid)")"; rc=$?  # re
   || no "re-entry collision" "rc=$rc out=$out"
 rm -rf "$nt"
 
+# 11. Cross-platform: the module must LOAD without fcntl (the Windows path) and newid
+#     must not use os.uname. Mask fcntl, re-import, and exercise the portable helpers.
+python3 - "$ROOT/bin/loop-lease.py" <<'PY'
+import sys, importlib.util
+sys.modules["fcntl"] = None            # make `import fcntl` raise ImportError
+spec = importlib.util.spec_from_file_location("ll_nofcntl", sys.argv[1])
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)             # must not raise (falls back to msvcrt / stub)
+assert callable(m._lock_exclusive) and callable(m._unlock), "portable helpers missing"
+assert "uname" not in open(sys.argv[1]).read(), "newid still uses os.uname (Unix-only)"
+PY
+[ $? = 0 ] && ok "loads without fcntl; no os.uname (Windows-safe)" || no "cross-platform" "module failed to load without fcntl"
+
 rm -rf "$tmp"
 echo "----"; echo "$PASS passed, $FAIL failed"; [ "$FAIL" -eq 0 ]

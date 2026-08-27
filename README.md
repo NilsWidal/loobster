@@ -12,8 +12,8 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 ![Runs in Claude Code + Codex](https://img.shields.io/badge/runs%20in-Claude%20Code%20%2B%20Codex-8957e5)
-![version](https://img.shields.io/badge/version-0.15.2-3fb950)
-![tests](https://img.shields.io/badge/tests-113%20passing-3fb950)
+![version](https://img.shields.io/badge/version-0.15.3-3fb950)
+![tests](https://img.shields.io/badge/tests-117%20passing-3fb950)
 ![compliance](https://img.shields.io/badge/compliance-4%20frameworks-8957e5)
 ![security](https://img.shields.io/badge/security-CodeQL-2ea043)
 
