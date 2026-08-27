@@ -16,7 +16,11 @@ G(){ git -C "$1" -c user.email=t@t -c user.name=t "${@:2}" >/dev/null 2>&1; }
 
 mkrepo(){ local d; d="$(mktemp -d)"; G "$d" init -b main; echo x > "$d/x"; G "$d" add -A; G "$d" commit -m init; echo "$d"; }
 
-mkfakegh(){ # $1 bindir  $2 visibility — logs every call to $1/gh.log
+mkfakegh(){ # $1 bindir  $2 visibility  $3 plan(default free)  $4 readback-public override
+  local pub="${4:-}"                              # bake the live read-back exposure
+  if [ -z "$pub" ]; then
+    pub=true; [ "$2" = "PRIVATE" ] && case "${3:-free}" in *enterprise*) pub=false;; esac
+  fi
   cat > "$1/gh" <<EOF
 #!/usr/bin/env bash
 echo "\$*" >> "$1/gh.log"
@@ -25,6 +29,11 @@ case "\$*" in
   *nameWithOwner*) echo "acme/widgets" ;;
   *visibility*) echo "$2" ;;
   *defaultBranchRef*) echo "main" ;;
+  *plan.name*) echo "${3:-free}" ;;                          # plan query
+  *"/pages"*html_url*)                                        # live read-back
+      printf '%s\t%s\n' "https://acme.github.io/widgets/" "$pub" ;;
+  *"-X DELETE"*"/pages"*)                                     # rollback
+      [ -f "$1/delete_fails" ] && exit 1 || exit 0 ;;
 esac
 exit 0
 EOF
@@ -80,13 +89,61 @@ PATH="$fake:$PATH" bash "$INIT" --repo "$d" --public-ok --force >/dev/null 2>&1;
   && ok "--public-ok overrides (pages API called)" || no "--public-ok" "rc=$rc log=$(cat "$fake/gh.log" 2>/dev/null)"
 rmtree "$d"; rmtree "$fake"
 
-# 7. PRIVATE repo: enables Pages; --protect-main sets branch protection.
-d="$(mkrepo)"; fake="$(mktemp -d)"; mkfakegh "$fake" PRIVATE
-PATH="$fake:$PATH" bash "$INIT" --repo "$d" --protect-main >/dev/null 2>&1; rc=$?
+# 7. PRIVATE repo on GitHub Enterprise Cloud: Pages is genuinely private, so it
+#    enables with NO --public-ok; --protect-main sets branch protection; reports private.
+d="$(mkrepo)"; fake="$(mktemp -d)"; mkfakegh "$fake" PRIVATE enterprise
+out="$(PATH="$fake:$PATH" bash "$INIT" --repo "$d" --protect-main 2>&1)"; rc=$?
 { [ "$rc" = 0 ] && grep -q "repos/acme/widgets/pages" "$fake/gh.log" \
-  && grep -q "branches/main/protection" "$fake/gh.log"; } \
-  && ok "private repo -> Pages + branch protection via gh" \
-  || no "private path" "rc=$rc log=$(cat "$fake/gh.log" 2>/dev/null)"
+  && grep -q "branches/main/protection" "$fake/gh.log" \
+  && echo "$out" | grep -q "private (Enterprise)"; } \
+  && ok "private+Enterprise -> Pages (private) + protection" \
+  || no "enterprise private path" "rc=$rc out=$out"
+rmtree "$d"; rmtree "$fake"
+
+# 7b. PRIVATE repo NOT on Enterprise: GitHub serves Pages publicly -> REFUSE (exit 3),
+#     no pages API call. This is the core fix (was silently published before).
+d="$(mkrepo)"; fake="$(mktemp -d)"; mkfakegh "$fake" PRIVATE free
+out="$(PATH="$fake:$PATH" bash "$INIT" --repo "$d" 2>&1)"; rc=$?
+{ [ "$rc" = 3 ] && ! grep -q "/pages" "$fake/gh.log" 2>/dev/null \
+  && echo "$out" | grep -q "WORLD-READABLE"; } \
+  && ok "private+non-Enterprise -> refused (exit 3, not published)" \
+  || no "private public-pages refusal" "rc=$rc out=$out"
+
+# 7c. Same, with --public-ok: enables and reports the board as PUBLIC.
+rm -f "$fake/gh.log"
+out="$(PATH="$fake:$PATH" bash "$INIT" --repo "$d" --public-ok --force 2>&1)"; rc=$?
+{ [ "$rc" = 0 ] && grep -q "repos/acme/widgets/pages" "$fake/gh.log" \
+  && echo "$out" | grep -qi "PUBLIC"; } \
+  && ok "private+non-Enterprise + --public-ok -> enabled, warned PUBLIC" \
+  || no "private public-ok" "rc=$rc out=$out"
+rmtree "$d"; rmtree "$fake"
+
+# 7d. PRIVATE + Enterprise, but the org policy actually serves Pages PUBLICLY
+#     (read-back says public): with no --public-ok, roll back (DELETE) and exit 3.
+d="$(mkrepo)"; fake="$(mktemp -d)"; mkfakegh "$fake" PRIVATE enterprise true
+out="$(PATH="$fake:$PATH" bash "$INIT" --repo "$d" 2>&1)"; rc=$?
+{ [ "$rc" = 3 ] && grep -q "api -X DELETE repos/acme/widgets/pages" "$fake/gh.log" \
+  && echo "$out" | grep -q "DISABLED again"; } \
+  && ok "enterprise+private but served public -> rolled back (exit 3)" \
+  || no "public rollback" "rc=$rc out=$out log=$(cat "$fake/gh.log" 2>/dev/null)"
+
+# 7e. Same, WITH --public-ok: the human accepted it, so it stays published.
+rm -f "$fake/gh.log"
+out="$(PATH="$fake:$PATH" bash "$INIT" --repo "$d" --public-ok --force 2>&1)"; rc=$?
+{ [ "$rc" = 0 ] && ! grep -q "api -X DELETE" "$fake/gh.log" \
+  && echo "$out" | grep -qi "accepted via --public-ok"; } \
+  && ok "enterprise+private served public + --public-ok -> kept" \
+  || no "public accepted" "rc=$rc out=$out"
+rmtree "$d"; rmtree "$fake"
+
+# 7f. Rollback DELETE itself fails -> do NOT claim it was disabled; warn STILL PUBLIC.
+d="$(mkrepo)"; fake="$(mktemp -d)"; mkfakegh "$fake" PRIVATE enterprise true
+touch "$fake/delete_fails"
+out="$(PATH="$fake:$PATH" bash "$INIT" --repo "$d" 2>&1)"; rc=$?
+{ [ "$rc" = 3 ] && echo "$out" | grep -q "STILL PUBLIC" \
+  && ! echo "$out" | grep -q "Nothing is left published"; } \
+  && ok "failed rollback -> honest STILL PUBLIC warning (exit 3)" \
+  || no "rollback failure honesty" "rc=$rc out=$out"
 rmtree "$d"; rmtree "$fake"
 
 # 8. --dry-run writes nothing.
